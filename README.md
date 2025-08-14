@@ -1,4 +1,3 @@
-# LocalNetSpeed-swift
 # LocalNetSpeed (Swift)
 
 本專案示範如何用 Swift 實作一個本地網路速度測試工具，包含：
