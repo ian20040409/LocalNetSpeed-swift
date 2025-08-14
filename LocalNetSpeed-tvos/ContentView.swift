@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var vm = ContentViewModel()
     @FocusState private var focusedButton: FocusableButton?
     @State private var localIP = "獲取中..."
+    @State private var isShowingIPInputView = false
 
     enum FocusableButton {
         case modeSelection
@@ -72,21 +73,51 @@ struct ContentView: View {
                             
                         
                         // 手動輸入區域
+                        /*
                         VStack(spacing: 20) {
                             HStack(spacing: 15) {
-                                Text("目標 IP:")
-                                    .font(.title3)
-                                    
-                                
-                                TextField("192.168.x.x", text: $vm.manualHost)
+                                TextField("目標 IP:", text: $vm.manualHost)
                                     .font(.title3)
                                     .frame(width: 500)
                                     .focused($focusedButton, equals: .manualInput)
-                                    .onSubmit {
-                                        vm.finishManualInput()
-                                    }
+                                        .onSubmit {
+                                            vm.finishManualInput()
+                                            vm.start()           // 接著立即開始測試
+
+                                        }
                             }
-                            
+                          */
+                        
+                        // 在 ContentView 的 if vm.mode == .client { ... } 內部
+
+                        // ... 原本的 VStack ...
+                        VStack(spacing: 20) {
+                            // 用一個 HStack 來顯示當前 IP 並提供一個編輯按鈕
+                            HStack {
+                                Text("目標 IP: \(vm.manualHost.isEmpty ? "尚未設定" : vm.manualHost)")
+                                    .font(.title3)
+
+                                Button("編輯") {
+                                    isShowingIPInputView = true
+                                }
+                                .focused($focusedButton, equals: .manualInput)
+                            }
+                        
+                        .padding()
+                        .background(.thinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        // 使用 .sheet 來彈出全螢幕的 IP 輸入畫面
+                        .sheet(isPresented: $isShowingIPInputView) {
+                            IPInputView { ipString in
+                                // 當在 IPInputView 按下 "Done" 時，會執行這裡的程式碼
+                                vm.manualHost = ipString // 更新 ViewModel
+                                vm.finishManualInput()   // 呼叫原本的函式來確認 IP
+                                isShowingIPInputView = false // 關閉輸入畫面
+                                vm.start() // 自動開始測試
+                            }
+                        }
+                        // ... 後續的程式碼 ...
+                        
                             VStack(spacing: 12) {
                                 if localIP != "獲取中..." && localIP != "無法取得" {
                                     VStack(spacing: 8) {
@@ -117,19 +148,7 @@ struct ContentView: View {
                                 .controlSize(.large)
                                 .focused($focusedButton, equals: .clearSelection)
                                 
-                                // 顯示當前選中的 IP
-                                VStack(spacing: 5) {
-                                    Text("目標伺服器")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text(vm.getTargetHost())
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.green)
-                                }
-                                .padding()
-                                .background(.thinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                
                             }
                         }
                     }
