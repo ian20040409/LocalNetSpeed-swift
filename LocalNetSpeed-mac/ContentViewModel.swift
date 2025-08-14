@@ -12,6 +12,7 @@ final class ContentViewModel: ObservableObject {
     @Published var log = ""
     @Published var result: SpeedTestResult?
     @Published var serverConnectionCount = 0
+    @Published var enableRetry = true  // 控制是否啟用重試機制
     
     private var tester: SpeedTester?
     
@@ -68,7 +69,21 @@ final class ContentViewModel: ObservableObject {
                 }
             }, completion: { [weak self] res in
                 Task { @MainActor in self?.handleCompletion(res) }
-            })
+            }, retryStatus: { [weak self] attempt, maxAttempts in
+                Task { @MainActor in
+                    if attempt == 1 {
+                        self?.progressText = "正在連線..."
+                    } else if attempt <= 5 {
+                        self?.progressText = "重試連線 (\(attempt)/\(maxAttempts))..."
+                        self?.append("第 \(attempt) 次連線嘗試...")
+                    } else {
+                        self?.progressText = "等待伺服器啟動... (\(attempt)/\(maxAttempts))"
+                        if attempt % 5 == 0 {  // 每5次重試記錄一次
+                            self?.append("持續等待伺服器啟動... (第 \(attempt) 次嘗試)")
+                        }
+                    }
+                }
+            }, enableRetry: enableRetry)
         }
     }
     
@@ -97,23 +112,40 @@ final class ContentViewModel: ObservableObject {
     }
     
     private func handleCompletion(_ res: Result<SpeedTestResult, Error>) {
-        isRunning = false
         switch res {
         case .success(let r):
             result = r
-            progressText = "完成"
-            append(format(r))
+            if mode == .server {
+                // 伺服器模式：測試完成後繼續運行，等待下一個連線
+                progressText = "等待連線..."
+                append(format(r))
+                append("--- 伺服器繼續運行，等待下一個連線 ---")
+            } else {
+                // 客戶端模式：測試完成後停止
+                isRunning = false
+                progressText = "完成"
+                append(format(r))
+            }
         case .failure(let e):
             let errorMessage = formatError(e)
-            progressText = "錯誤：\(errorMessage)"
-            append("錯誤：\(errorMessage)")
-            
-            // 如果是權限錯誤，提供額外建議
-            if errorMessage.contains("Operation not permitted") || errorMessage.contains("權限") {
-                append("建議解決方案：")
-                append("1. 檢查系統防火牆設定")
-                append("2. 嘗試使用不同埠號（如 8080）")
-                append("3. 確認 App 具有網路權限")
+            if mode == .server {
+                // 伺服器模式：錯誤後繼續運行
+                progressText = "等待連線..."
+                append("錯誤：\(errorMessage)")
+                append("--- 伺服器繼續運行，等待下一個連線 ---")
+            } else {
+                // 客戶端模式：錯誤後停止
+                isRunning = false
+                progressText = "錯誤：\(errorMessage)"
+                append("錯誤：\(errorMessage)")
+                
+                // 如果是權限錯誤，提供額外建議
+                if errorMessage.contains("Operation not permitted") || errorMessage.contains("權限") {
+                    append("建議解決方案：")
+                    append("1. 檢查系統防火牆設定")
+                    append("2. 嘗試使用不同埠號（如 8080）")
+                    append("3. 確認 App 具有網路權限")
+                }
             }
         }
     }

@@ -13,13 +13,31 @@ final class SpeedTester {
     static let defaultPort: UInt16 = 65432
     static let defaultChunkSize = 1 * 1024 * 1024
     
+    // 重試配置
+    static let maxRetryAttempts = 50  // 增加重試次數
+    static let retryDelaySeconds: TimeInterval = 2.0
+    static let retryDelayIncrement: TimeInterval = 0.5  // 減少延遲增量
+    
     private var listener: NWListener?
     private var serverConnection: NWConnection?
     private var clientConnection: NWConnection?
     private var isCancelled = false
     
+    // 重試相關屬性
+    private var currentRetryAttempt = 0
+    private var retryTimer: Timer?
+    private var connectionTimeoutTimer: Timer?
+    
     func cancel() {
         isCancelled = true
+        
+        // 停止重試計時器
+        retryTimer?.invalidate()
+        retryTimer = nil
+        
+        // 停止連接超時計時器
+        connectionTimeoutTimer?.invalidate()
+        connectionTimeoutTimer = nil
         
         // 強制關閉所有連線
         serverConnection?.forceCancel()
@@ -32,9 +50,18 @@ final class SpeedTester {
         serverConnection = nil
         clientConnection = nil
         listener = nil
+        
+        // 重置重試狀態
+        currentRetryAttempt = 0
     }
     
     private func cleanup() {
+        retryTimer?.invalidate()
+        retryTimer = nil
+        
+        connectionTimeoutTimer?.invalidate()
+        connectionTimeoutTimer = nil
+        
         serverConnection?.forceCancel()
         clientConnection?.forceCancel()
         listener?.cancel()
@@ -42,6 +69,21 @@ final class SpeedTester {
         serverConnection = nil
         clientConnection = nil
         listener = nil
+        
+        currentRetryAttempt = 0
+    }
+    
+    private func cleanupClientOnly() {
+        retryTimer?.invalidate()
+        retryTimer = nil
+        
+        connectionTimeoutTimer?.invalidate()
+        connectionTimeoutTimer = nil
+        
+        clientConnection?.forceCancel()
+        clientConnection = nil
+        
+        currentRetryAttempt = 0
     }
 }
 
@@ -83,10 +125,13 @@ extension SpeedTester {
                                      startRef: startRef,
                                      completion: completion)
                 case .failed(let err):
-                    self.cleanup()
+                    // 只關閉當前連接，不關閉整個伺服器
+                    conn.cancel()
+                    self.serverConnection = nil
                     completion(.failure(err))
                 case .cancelled:
-                    self.cleanup()
+                    // 只關閉當前連接，不關閉整個伺服器
+                    self.serverConnection = nil
                     if self.isCancelled {
                         completion(.failure(NSError(domain: "Cancelled", code: -999)))
                     }
@@ -139,7 +184,9 @@ extension SpeedTester {
                     endedAt: end,
                     evaluation: eval
                 )
-                self.cleanup()
+                // 只關閉當前連接，不關閉整個伺服器
+                connection.cancel()
+                self.serverConnection = nil
                 completion(.success(result))
                 return
             }
@@ -158,8 +205,35 @@ extension SpeedTester {
                    port: UInt16,
                    totalSizeMB: Int,
                    progress: @escaping (Int) -> Void,
-                   completion: @escaping (Result<SpeedTestResult, Error>) -> Void) {
+                   completion: @escaping (Result<SpeedTestResult, Error>) -> Void,
+                   retryStatus: @escaping (Int, Int) -> Void = { _, _ in },
+                   enableRetry: Bool = true) {
         isCancelled = false
+        currentRetryAttempt = 0
+        
+        attemptConnection(host: host,
+                         port: port,
+                         totalSizeMB: totalSizeMB,
+                         progress: progress,
+                         completion: completion,
+                         retryStatus: retryStatus,
+                         enableRetry: enableRetry)
+    }
+    
+    private func attemptConnection(host: String,
+                                  port: UInt16,
+                                  totalSizeMB: Int,
+                                  progress: @escaping (Int) -> Void,
+                                  completion: @escaping (Result<SpeedTestResult, Error>) -> Void,
+                                  retryStatus: @escaping (Int, Int) -> Void,
+                                  enableRetry: Bool) {
+        if isCancelled {
+            completion(.failure(NSError(domain: "Cancelled", code: -999)))
+            return
+        }
+        
+        currentRetryAttempt += 1
+        retryStatus(currentRetryAttempt, Self.maxRetryAttempts)
         
         let conn = NWConnection(host: .init(host), port: .init(rawValue: port)!, using: .tcp)
         clientConnection = conn
@@ -168,10 +242,28 @@ extension SpeedTester {
         let sentBytes = Atomic<Int>(0)
         let targetBytes = totalSizeMB * 1024 * 1024
         
+        // 設置連接超時（30秒）
+        connectionTimeoutTimer?.invalidate()
+        connectionTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            if self.clientConnection === conn && conn.state != .ready {
+                // 連接超時，強制失敗
+                let timeoutError = NSError(domain: "ConnectionTimeout", code: -1004, 
+                                         userInfo: [NSLocalizedDescriptionKey: "連接超時"])
+                self.handleConnectionFailure(host: host, port: port, totalSizeMB: totalSizeMB, 
+                                           progress: progress, completion: completion, 
+                                           retryStatus: retryStatus, enableRetry: enableRetry, error: timeoutError)
+            }
+        }
+        
         conn.stateUpdateHandler = { [weak self] state in
             guard let self else { return }
             switch state {
             case .ready:
+                // 連接成功，清除超時計時器
+                self.connectionTimeoutTimer?.invalidate()
+                self.connectionTimeoutTimer = nil
+                
                 startRef.set(Date())
                 self.sendLoop(connection: conn,
                                chunkSize: Self.defaultChunkSize,
@@ -181,10 +273,16 @@ extension SpeedTester {
                                startRef: startRef,
                                completion: completion)
             case .failed(let err):
-                self.cleanup()
-                completion(.failure(err))
+                self.handleConnectionFailure(host: host,
+                                            port: port,
+                                            totalSizeMB: totalSizeMB,
+                                            progress: progress,
+                                            completion: completion,
+                                            retryStatus: retryStatus,
+                                            enableRetry: enableRetry,
+                                            error: err)
             case .cancelled:
-                self.cleanup()
+                self.cleanupClientOnly()
                 if self.isCancelled {
                     completion(.failure(NSError(domain: "Cancelled", code: -999)))
                 }
@@ -193,6 +291,57 @@ extension SpeedTester {
         }
         
         conn.start(queue: .global(qos: .userInitiated))
+    }
+    
+    private func handleConnectionFailure(host: String,
+                                       port: UInt16,
+                                       totalSizeMB: Int,
+                                       progress: @escaping (Int) -> Void,
+                                       completion: @escaping (Result<SpeedTestResult, Error>) -> Void,
+                                       retryStatus: @escaping (Int, Int) -> Void,
+                                       enableRetry: Bool,
+                                       error: Error) {
+        // 清理當前連接
+        clientConnection?.forceCancel()
+        clientConnection = nil
+        
+        // 檢查是否應該重試
+        if enableRetry && currentRetryAttempt < Self.maxRetryAttempts && !isCancelled {
+            // 計算延遲時間（遞增延遲，但有上限）
+            let baseDelay = Self.retryDelaySeconds + (Double(currentRetryAttempt - 1) * Self.retryDelayIncrement)
+            let delay = min(baseDelay, 10.0)  // 最大延遲不超過10秒
+            
+            // 清理之前的計時器
+            retryTimer?.invalidate()
+            
+            // 使用 DispatchQueue 而不是 Timer 來確保更可靠的調度
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self, !self.isCancelled else { return }
+                self.attemptConnection(host: host,
+                                      port: port,
+                                      totalSizeMB: totalSizeMB,
+                                      progress: progress,
+                                      completion: completion,
+                                      retryStatus: retryStatus,
+                                      enableRetry: enableRetry)
+            }
+        } else {
+            // 達到最大重試次數或已取消，返回錯誤
+            self.cleanupClientOnly()
+            let finalError: Error
+            if !enableRetry {
+                finalError = NSError(domain: "ConnectionFailed", 
+                                   code: -1002, 
+                                   userInfo: [NSLocalizedDescriptionKey: "連線失敗：無法連接到伺服器。錯誤：\(error.localizedDescription)"])
+            } else if currentRetryAttempt >= Self.maxRetryAttempts {
+                finalError = NSError(domain: "ConnectionFailed", 
+                                   code: -1001, 
+                                   userInfo: [NSLocalizedDescriptionKey: "連線失敗：已達到最大重試次數 (\(Self.maxRetryAttempts) 次)。最後錯誤：\(error.localizedDescription)"])
+            } else {
+                finalError = error
+            }
+            completion(.failure(finalError))
+        }
     }
     
     private func sendLoop(connection: NWConnection,
@@ -225,7 +374,7 @@ extension SpeedTester {
                     endedAt: end,
                     evaluation: eval
                 )
-                self.cleanup()
+                self.cleanupClientOnly()
                 completion(.success(result))
             })
             return
