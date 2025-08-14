@@ -161,22 +161,22 @@ struct ContentView: View {
                             
                             // 狀態資訊
                             HStack(spacing: 30) {
-                                VStack { 
+                                VStack {
                                     Text("埠號")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text(vm.port)
                                         .font(.title2)
-                                        .fontWeight(.bold) 
+                                        .fontWeight(.bold)
                                 }
-                                VStack { 
+                                VStack {
                                     Text("連線數")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text("\(vm.serverConnectionCount)")
                                         .font(.title2)
                                         .fontWeight(.bold)
-                                        .foregroundColor(.green) 
+                                        .foregroundColor(.green)
                                 }
                             }
                         }
