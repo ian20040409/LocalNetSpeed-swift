@@ -10,38 +10,7 @@
 - 顯示進度
 - Gigabit 效能評估 (125 MB/s 理論，100 MB/s 為實務優秀門檻)
 
-## 命令列使用
 
-### 建置
-```bash
-swift build -c release
-```
-
-### 啟動伺服器
-```bash
-swift run LocalNetSpeed server --port 65432
-```
-
-### 啟動客戶端 (傳 100MB)
-```bash
-swift run LocalNetSpeed client --host 192.168.1.10 --port 65432 --size 100
-```
-
-參數說明：
-- `--size` 單位：MB
-- `--port` 預設 65432
-
-## SwiftUI App
-開啟 Xcode -> 選擇本專案 -> 執行目標：
-- **LocalNetSpeed**: iOS 版本
-- **LocalNetSpeed-mac**: macOS 版本  
-- **LocalNetSpeed-tvos**: tvOS 版本
-
-iOS 需在 `Info.plist` 加上：
-```xml
-<key>NSLocalNetworkUsageDescription</key>
-<string>此 App 需要使用區域網路來進行速度測試。</string>
-```
 
 ## 平台特色
 ### iOS 版本
