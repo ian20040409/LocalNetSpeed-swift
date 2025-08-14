@@ -1,0 +1,219 @@
+import SwiftUI
+import Network
+
+struct ContentView: View {
+    @StateObject private var vm = ContentViewModel()
+    @State private var localIP = "獲取中..."
+    @State private var showCopiedAlert = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Picker("模式", selection: $vm.mode) {
+                ForEach(SpeedTestMode.allCases) { m in
+                    Text(m.rawValue).tag(m)
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            // 顯示本機 IP
+            HStack {
+                Text("本機 IP:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Text(localIP)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .textSelection(.enabled) // 可選取複製
+                
+                Spacer()
+                
+                // 複製按鈕
+                Button(action: {
+                    copyToClipboard(localIP)
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .help("複製 IP 位址")
+                .disabled(localIP == "獲取中..." || localIP == "無法取得")
+                
+                Button("重新整理") {
+                    getLocalIPAddress()
+                }
+                .font(.caption)
+                .buttonStyle(.bordered)
+            }
+            .padding(.vertical, 4)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            
+            if vm.mode == .client {
+                TextField("伺服器 IP", text: $vm.host)
+                    .textFieldStyle(.roundedBorder)
+            }
+            
+            HStack {
+                TextField("埠號", text: $vm.port)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 120)
+                if vm.mode == .client {
+                    TextField("資料大小 (MB)", text: $vm.sizeMB)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 140)
+                }
+                Spacer()
+            }
+            
+            // 狀態顯示
+            if vm.isRunning || (!vm.progressText.isEmpty && vm.progressText != "尚未開始") {
+                Text(vm.progressText)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            // 速度結果顯示
+            if let r = vm.result {
+                Text("速度: \(String(format: "%.2f", r.speedMBps)) MB/s")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+            
+            ScrollView {
+                Text(vm.log)
+                    .font(.system(.footnote, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+            }
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(minHeight: 240)
+            
+            Spacer()
+            
+            // 測試按鈕
+            HStack {
+                Button(vm.isRunning ? "停止" : "開始測試") {
+                    vm.isRunning ? vm.cancel() : vm.start()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding()
+        .animation(.default, value: vm.mode)
+        .onAppear {
+            getLocalIPAddress()
+        }
+        .alert("已複製", isPresented: $showCopiedAlert) {
+            Button("確定") { }
+        } message: {
+            Text("IP 位址已複製到剪貼板")
+        }
+    }
+    
+    // 複製到剪貼板
+    private func copyToClipboard(_ text: String) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #elseif os(iOS)
+        UIPasteboard.general.string = text
+        #endif
+        
+        // 顯示複製成功提示
+        showCopiedAlert = true
+        
+        // 觸覺回饋 (iOS)
+        #if os(iOS)
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        #endif
+    }
+    
+    // 獲取本機 IP 位址
+    private func getLocalIPAddress() {
+        Task {
+            let ip = await LocalIPHelper.getLocalIPAddress()
+            await MainActor.run {
+                self.localIP = ip
+            }
+        }
+    }
+}
+
+// MARK: - 本機 IP 取得工具
+struct LocalIPHelper {
+    static func getLocalIPAddress() async -> String {
+        return await withCheckedContinuation { continuation in
+            let monitor = NWPathMonitor()
+            monitor.pathUpdateHandler = { path in
+                var result = "無法取得"
+                
+                // 使用 path.availableInterfaces 找到有效介面
+                for interface in path.availableInterfaces {
+                    if interface.type == .wifi || interface.type == .wiredEthernet {
+                        // 嘗試取得該介面的 IP
+                        if let ip = getIPAddress(for: interface) {
+                            result = ip
+                            break
+                        }
+                    }
+                }
+                
+                // 如果上述方法沒找到，使用傳統方法
+                if result == "無法取得" {
+                    result = getIPAddressTraditional()
+                }
+                
+                monitor.cancel()
+                continuation.resume(returning: result)
+            }
+            
+            let queue = DispatchQueue(label: "NetworkMonitor")
+            monitor.start(queue: queue)
+        }
+    }
+    
+    private static func getIPAddress(for interface: NWInterface) -> String? {
+        // Network.framework 介面資訊較難直接取得 IP
+        // 這裡回到傳統方法
+        return nil
+    }
+    
+    private static func getIPAddressTraditional() -> String {
+        var address: String = "無法取得"
+        var ifaddr: UnsafeMutablePointer<ifaddrs>? = nil
+        
+        if getifaddrs(&ifaddr) == 0 {
+            var ptr = ifaddr
+            while ptr != nil {
+                defer { ptr = ptr?.pointee.ifa_next }
+                
+                let interface = ptr?.pointee
+                let addrFamily = interface?.ifa_addr.pointee.sa_family
+                
+                if addrFamily == UInt8(AF_INET) {
+                    // IPv4
+                    let name = String(cString: (interface?.ifa_name)!)
+                    
+                    // 過濾有效的介面（排除 loopback）
+                    if name == "en0" || name == "en1" || name.hasPrefix("en") && !name.contains("lo") {
+                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                        let addr = interface?.ifa_addr
+                        
+                        if getnameinfo(addr, socklen_t((addr?.pointee.sa_len)!),
+                                      &hostname, socklen_t(hostname.count),
+                                      nil, socklen_t(0), NI_NUMERICHOST) == 0 {
+                            address = String(cString: hostname)
+                            break
+                        }
+                    }
+                }
+            }
+            freeifaddrs(ifaddr)
+        }
+        
+        return address
+    }
+}
