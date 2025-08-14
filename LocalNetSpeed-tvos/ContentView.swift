@@ -1,6 +1,44 @@
 import SwiftUI
 import Network
 
+// MARK: - 統計卡片視圖
+struct StatisticCardView: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Text(value)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 15)
+        .padding(.horizontal, 8)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(color.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
 struct ContentView: View {
     @StateObject private var vm = ContentViewModel()
     @FocusState private var focusedButton: FocusableButton?
@@ -221,26 +259,191 @@ struct ContentView: View {
 
                 // 結果顯示
                 if let result = vm.result {
-                    VStack(spacing: 25) {
-                        Text("測試結果").font(.title).fontWeight(.bold)
-                        VStack(spacing: 20) {
-                            VStack(spacing: 10) {
-                                Text("網路速度").font(.title2).foregroundColor(.secondary)
-                                Text("\(String(format: "%.2f", result.speedMBps)) MB/s").font(.system(size: 72, weight: .bold)).foregroundColor(.green)
-                            }
-                            VStack(spacing: 10) {
-                                Text("效能評級").font(.title2).foregroundColor(.secondary)
-                                Text(result.evaluation.rating).font(.system(size: 36, weight: .semibold)).foregroundColor(.primary)
-                            }
+                    VStack(spacing: 30) {
+                        // 標題區域
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(.green)
+                            Text("測試結果")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                        }
+                        
+                        VStack(spacing: 35) {
+                            // 主要速度顯示區域
                             VStack(spacing: 15) {
-                                HStack(spacing: 40) {
-                                    VStack { Text("傳輸量").font(.caption).foregroundColor(.secondary); Text("\(String(format: "%.2f", Double(result.transferredBytes)/1024/1024)) MB").font(.title3).fontWeight(.medium) }
-                                    VStack { Text("耗時").font(.caption).foregroundColor(.secondary); Text("\(String(format: "%.2f", result.duration)) 秒").font(.title3).fontWeight(.medium) }
-                                    VStack { Text("達成率").font(.caption).foregroundColor(.secondary); Text("\(String(format: "%.1f", result.evaluation.performancePercent))%").font(.title3).fontWeight(.medium) }
+                                HStack {
+                                    Image(systemName: "speedometer")
+                                        .font(.title2)
+                                        .foregroundColor(.blue)
+                                    Text("網路速度")
+                                        .font(.title2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text("\(String(format: "%.2f", result.speedMBps)) MB/s")
+                                    .font(.system(size: 80, weight: .bold, design: .rounded))
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.green, .blue],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 4)
+                            }
+                            .padding(25)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 20)
+                                            .stroke(.green.opacity(0.3), lineWidth: 2)
+                                    )
+                            )
+                            
+                            // 效能評級區域
+                            VStack(spacing: 15) {
+                                HStack {
+                                    Image(systemName: "star.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.orange)
+                                    Text("效能評級")
+                                        .font(.title2)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Text(result.evaluation.rating)
+                                    .font(.system(size: 42, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Capsule()
+                                            .fill(ratingBackgroundColor(for: result.evaluation.rating))
+                                            .opacity(0.2)
+                                    )
+                                
+                                Text(result.evaluation.message)
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(25)
+                            .background(.thinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            
+                            // 詳細統計區域
+                            VStack(spacing: 25) {
+                                HStack {
+                                    Image(systemName: "chart.bar.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.purple)
+                                    Text("詳細統計")
+                                        .font(.title2)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+                                
+                                // 第一行統計
+                                HStack(spacing: 30) {
+                                    StatisticCardView(
+                                        icon: "arrow.up.circle.fill",
+                                        title: "傳輸量",
+                                        value: "\(String(format: "%.2f", Double(result.transferredBytes)/1024/1024)) MB",
+                                        color: .blue
+                                    )
+                                    
+                                    StatisticCardView(
+                                        icon: "clock.fill",
+                                        title: "耗時",
+                                        value: "\(String(format: "%.2f", result.duration)) 秒",
+                                        color: .orange
+                                    )
+                                    
+                                    StatisticCardView(
+                                        icon: "percent",
+                                        title: "達成率",
+                                        value: "\(String(format: "%.1f", result.evaluation.performancePercent))%",
+                                        color: .green
+                                    )
+                                }
+                                
+                                // 第二行統計
+                                HStack(spacing: 30) {
+                                    StatisticCardView(
+                                        icon: "gauge.high",
+                                        title: "理論速度",
+                                        value: "\(String(format: "%.0f", GigabitEvaluator.theoreticalMBps)) MB/s",
+                                        color: .gray
+                                    )
+                                    
+                                    StatisticCardView(
+                                        icon: "calendar.badge.clock",
+                                        title: "開始時間",
+                                        value: formatTime(result.startedAt),
+                                        color: .purple
+                                    )
+                                    
+                                    StatisticCardView(
+                                        icon: "stopwatch.fill",
+                                        title: "結束時間",
+                                        value: formatTime(result.endedAt),
+                                        color: .purple
+                                    )
                                 }
                             }
+                            .padding(25)
+                            .background(.thinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                            
+                            // 建議區域
+                            if !result.evaluation.suggestions.isEmpty {
+                                VStack(spacing: 20) {
+                                    HStack {
+                                        Image(systemName: "lightbulb.fill")
+                                            .font(.title2)
+                                            .foregroundColor(.yellow)
+                                        Text("改善建議")
+                                            .font(.title2)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 15) {
+                                        ForEach(Array(result.evaluation.suggestions.enumerated()), id: \.offset) { index, suggestion in
+                                            HStack(alignment: .top, spacing: 15) {
+                                                Image(systemName: "checkmark.circle")
+                                                    .font(.title3)
+                                                    .foregroundColor(.green)
+                                                    .frame(width: 24)
+                                                
+                                                Text(suggestion)
+                                                    .font(.callout)
+                                                    .foregroundColor(.primary)
+                                                    .lineLimit(nil)
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                                
+                                                Spacer()
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(25)
+                                .background(.yellow.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(.yellow.opacity(0.3), lineWidth: 2)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                            }
                         }
-                        .padding(30).background(.thinMaterial).clipShape(RoundedRectangle(cornerRadius: 25))
                     }
                 }
 
@@ -301,6 +504,7 @@ struct ContentView: View {
         }
     }
     
+    
     // 輔助函數：根據模式返回圖示名稱
     private func icon(for mode: SpeedTestMode) -> String {
         switch mode {
@@ -309,6 +513,24 @@ struct ContentView: View {
         case .client:
             return "iphone"
         }
+    }
+    
+    // 輔助函數：根據評級返回背景色
+    private func ratingBackgroundColor(for rating: String) -> Color {
+        if rating.contains("優秀") { return .green }
+        else if rating.contains("良好") { return .blue }
+        else if rating.contains("一般") { return .orange }
+        else if rating.contains("偏慢") { return .red }
+        else if rating.contains("很慢") { return .red }
+        else { return .gray }
+    }
+    
+    // 輔助函數：格式化時間
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .medium
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
     
     // 獲取本機 IP 位址
