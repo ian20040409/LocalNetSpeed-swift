@@ -280,6 +280,12 @@ struct ContentView: View {
                 focusedButton = .startStop
             }
         }
+        .onChange(of: vm.isRunning) { _, isRunning in
+            // 當測試開始運行時，將焦點移到停止按鈕
+            if isRunning {
+                focusedButton = .startStop
+            }
+        }
     }
     
     // 輔助函數：根據模式返回圖示名稱

@@ -105,7 +105,46 @@ final class ContentViewModel: ObservableObject {
     
     func finishManualInput() {
         isEditingHost = false
-        host = manualHost
+        
+        // 驗證 IP 地址格式
+        let trimmedHost = manualHost.trimmingCharacters(in: .whitespaces)
+        guard !trimmedHost.isEmpty else {
+            progressText = "請輸入 IP 地址"
+            return
+        }
+        
+        guard isValidIPAddress(trimmedHost) else {
+            progressText = "IP 地址格式不正確，請輸入有效的 IPv4 地址（例如：192.168.1.1）"
+            return
+        }
+        
+        // 設定目標主機
+        host = trimmedHost
+        
+        // 在客戶端模式下立即開始測試
+        if mode == .client {
+            progressText = "IP 地址已確認，開始測試..."
+            start()
+        }
+    }
+    
+    // 驗證 IPv4 地址格式
+    private func isValidIPAddress(_ ip: String) -> Bool {
+        let components = ip.split(separator: ".").map(String.init)
+        
+        // 必須有四個部分
+        guard components.count == 4 else { return false }
+        
+        // 每個部分必須是 0-255 的數字
+        for component in components {
+            guard let number = Int(component),
+                  number >= 0 && number <= 255,
+                  String(number) == component else { // 防止前導零
+                return false
+            }
+        }
+        
+        return true
     }
     
     func getTargetHost() -> String {
