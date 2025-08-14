@@ -1,9 +1,5 @@
 import Foundation
-import Combine  // ← 加上這行
-
-#if os(iOS)
-import UIKit
-#endif
+import Combine
 
 @MainActor
 final class ContentViewModel: ObservableObject {
@@ -16,6 +12,10 @@ final class ContentViewModel: ObservableObject {
     @Published var log = ""
     @Published var result: SpeedTestResult?
     @Published var serverConnectionCount = 0
+    
+    // tvOS-specific properties
+    @Published var manualHost: String = ""
+    @Published var isEditingHost = false
     
     private var tester: SpeedTester?
     
@@ -51,7 +51,8 @@ final class ContentViewModel: ObservableObject {
                 }
             })
         case .client:
-            guard !host.trimmingCharacters(in: .whitespaces).isEmpty else {
+            let targetHost = getTargetHost()
+            guard !targetHost.trimmingCharacters(in: .whitespaces).isEmpty else {
                 progressText = "請輸入伺服器 IP"
                 isRunning = false
                 return
@@ -61,8 +62,8 @@ final class ContentViewModel: ObservableObject {
                 isRunning = false
                 return
             }
-            append("客戶端連線到 \(host):\(p)，傳送 \(size) MB...")
-            tester?.runClient(host: host,
+            append("客戶端連線到 \(targetHost):\(p)，傳送 \(size) MB...")
+            tester?.runClient(host: targetHost,
                               port: p,
                               totalSizeMB: size,
                               progress: { [weak self] sent in
@@ -94,15 +95,25 @@ final class ContentViewModel: ObservableObject {
         serverConnectionCount = 0
         progressText = "伺服器已強制停止"
         append("伺服器已強制停止")
-        
-        // 觸覺回饋 (iOS) - 僅在實體裝置上執行
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.prepare()
-            impactFeedback.impactOccurred()
+    }
+    
+    func clearPresetSelection() {
+        host = ""
+        manualHost = ""
+        isEditingHost = false
+    }
+    
+    func finishManualInput() {
+        isEditingHost = false
+        host = manualHost
+    }
+    
+    func getTargetHost() -> String {
+        if isEditingHost || !manualHost.isEmpty {
+            return manualHost
+        } else {
+            return host
         }
-        #endif
     }
     
     private func handleCompletion(_ res: Result<SpeedTestResult, Error>) {

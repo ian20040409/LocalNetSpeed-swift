@@ -6,10 +6,17 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		FFAC8EEE2E4E4B4900A63E21 /* home-net.icon in Resources */ = {isa = PBXBuildFile; fileRef = FFAC8EED2E4E4B4900A63E21 /* home-net.icon */; };
+		FFAC8EEF2E4E4B4900A63E21 /* home-net.icon in Resources */ = {isa = PBXBuildFile; fileRef = FFAC8EED2E4E4B4900A63E21 /* home-net.icon */; };
+		FFAC8EF02E4E4B4900A63E21 /* home-net.icon in Resources */ = {isa = PBXBuildFile; fileRef = FFAC8EED2E4E4B4900A63E21 /* home-net.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		FFAC8E7F2E4E255900A63E21 /* LocalNetSpeed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalNetSpeed.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFAC8EA02E4E2CB500A63E21 /* LocalNetSpeed-tvos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LocalNetSpeed-tvos.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFAC8EB32E4E34E200A63E21 /* LocalNetSpeed-mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LocalNetSpeed-mac.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FFAC8EED2E4E4B4900A63E21 /* home-net.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = "home-net.icon"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -62,6 +69,7 @@
 				FFAC8EA12E4E2CB500A63E21 /* LocalNetSpeed-tvos */,
 				FFAC8EB42E4E34E200A63E21 /* LocalNetSpeed-mac */,
 				FFAC8E802E4E255900A63E21 /* Products */,
+				FFAC8EED2E4E4B4900A63E21 /* home-net.icon */,
 			);
 			sourceTree = "<group>";
 		};
@@ -191,6 +199,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FFAC8EF02E4E4B4900A63E21 /* home-net.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -198,6 +207,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FFAC8EEE2E4E4B4900A63E21 /* home-net.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -205,6 +215,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FFAC8EEF2E4E4B4900A63E21 /* home-net.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -354,6 +365,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "home-net";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = N2S52TMFC2;
@@ -408,6 +420,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "home-net";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = N2S52TMFC2;
@@ -532,7 +545,17 @@
 				DEVELOPMENT_TEAM = N2S52TMFC2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -567,7 +590,17 @@
 				DEVELOPMENT_TEAM = N2S52TMFC2;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";

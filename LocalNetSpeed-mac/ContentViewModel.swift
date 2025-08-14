@@ -1,10 +1,6 @@
 import Foundation
 import Combine  // ← 加上這行
 
-#if os(iOS)
-import UIKit
-#endif
-
 @MainActor
 final class ContentViewModel: ObservableObject {
     @Published var mode: SpeedTestMode = .server
@@ -94,15 +90,10 @@ final class ContentViewModel: ObservableObject {
         serverConnectionCount = 0
         progressText = "伺服器已強制停止"
         append("伺服器已強制停止")
-        
-        // 觸覺回饋 (iOS) - 僅在實體裝置上執行
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.prepare()
-            impactFeedback.impactOccurred()
-        }
-        #endif
+    }
+    
+    func clearLog() {
+        log = ""
     }
     
     private func handleCompletion(_ res: Result<SpeedTestResult, Error>) {
@@ -113,13 +104,18 @@ final class ContentViewModel: ObservableObject {
             progressText = "完成"
             append(format(r))
         case .failure(let e):
-            progressText = "錯誤：\(e.localizedDescription)"
-            append("錯誤：\(e)")
+            let errorMessage = formatError(e)
+            progressText = "錯誤：\(errorMessage)"
+            append("錯誤：\(errorMessage)")
+            
+            // 如果是權限錯誤，提供額外建議
+            if errorMessage.contains("Operation not permitted") || errorMessage.contains("權限") {
+                append("建議解決方案：")
+                append("1. 檢查系統防火牆設定")
+                append("2. 嘗試使用不同埠號（如 8080）")
+                append("3. 確認 App 具有網路權限")
+            }
         }
-    }
-    
-    func clearLog() {
-        log = ""
     }
     
     private func append(_ line: String) {
@@ -155,5 +151,28 @@ final class ContentViewModel: ObservableObject {
             eval.suggestions.forEach { lines.append("• \($0)") }
         }
         return lines.joined(separator: "\n")
+    }
+    
+    private func formatError(_ error: Error) -> String {
+        let nsError = error as NSError
+        
+        // 處理常見的網路權限錯誤
+        if nsError.domain == NSPOSIXErrorDomain && nsError.code == 1 {
+            return "網路權限被拒絕"
+        }
+        
+        // 處理其他常見錯誤
+        switch nsError.code {
+        case 48: // Address already in use
+            return "埠號已被使用，請嘗試其他埠號"
+        case 49: // Can't assign requested address
+            return "無法綁定指定位址"
+        case 61: // Connection refused
+            return "連線被拒絕，請檢查伺服器是否正在執行"
+        case 65: // No route to host
+            return "無法連線到主機，請檢查網路連線"
+        default:
+            return nsError.localizedDescription
+        }
     }
 }

@@ -1,6 +1,6 @@
 //
 //  SpeedTester.swift
-//  LocalNetSpeed
+//  LocalNetSpeed-tvos
 //
 //  Created by 林恩佑 on 2025/8/14.
 //

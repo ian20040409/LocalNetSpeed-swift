@@ -67,6 +67,30 @@ struct ContentView: View {
             
             // 狀態顯示
             if vm.isRunning || (!vm.progressText.isEmpty && vm.progressText != "尚未開始") {
+                HStack {
+                    if vm.isRunning && vm.mode == .server {
+                        // 伺服器運行指示器
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 8, height: 8)
+                                .scaleEffect(vm.isRunning ? 1.0 : 0.5)
+                                .animation(.easeInOut(duration: 1.0).repeatForever(), value: vm.isRunning)
+                            Text("伺服器運行中")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                            
+                            if vm.serverConnectionCount > 0 {
+                                Text("(\(vm.serverConnectionCount) 連線)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Spacer()
+                    }
+                }
+                
                 Text(vm.progressText)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -79,25 +103,67 @@ struct ContentView: View {
                     .foregroundColor(.primary)
             }
             
-            ScrollView {
-                Text(vm.log)
-                    .font(.system(.footnote, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("日誌")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if !vm.log.isEmpty {
+                        Button("清除") {
+                            vm.clearLog()
+                        }
+                        .font(.caption2)
+                        .buttonStyle(.bordered)
+                    }
+                }
+                
+                ScrollView {
+                    Text(vm.log.isEmpty ? "尚無日誌記錄" : vm.log)
+                        .font(.system(.footnote, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .foregroundColor(vm.log.isEmpty ? .secondary : .primary)
+                }
+                .background(.thinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(minHeight: 240)
             }
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .frame(minHeight: 240)
             
             Spacer()
             
             // 測試按鈕
-            HStack {
-                Button(vm.isRunning ? "停止" : "開始測試") {
-                    vm.isRunning ? vm.cancel() : vm.start()
+            HStack(spacing: 12) {
+                if vm.isRunning {
+                    // 當運行中時顯示停止按鈕
+                    Button("停止") {
+                        vm.cancel()
+                    }
+                    .buttonStyle(.bordered)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
+                    
+                    // 伺服器模式顯示額外的狀態資訊
+                    if vm.mode == .server {
+                        Button("強制停止伺服器") {
+                            vm.forceStopServer()
+                        }
+                        .buttonStyle(.bordered)
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity)
+                    }
+                } else {
+                    // 當未運行時顯示開始按鈕
+                    Button(vm.mode == .server ? "啟動伺服器" : "開始測試") {
+                        vm.start()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
             }
         }
         .padding()
@@ -124,10 +190,13 @@ struct ContentView: View {
         // 顯示複製成功提示
         showCopiedAlert = true
         
-        // 觸覺回饋 (iOS)
+        // 觸覺回饋 (iOS) - 僅在實體裝置上執行
         #if os(iOS)
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.prepare()
+            impactFeedback.impactOccurred()
+        }
         #endif
     }
     

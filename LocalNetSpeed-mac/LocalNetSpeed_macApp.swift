@@ -13,5 +13,17 @@ struct LocalNetSpeed_macApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowResizability(.contentSize)
+        .defaultSize(width: 500, height: 600)
+        .commands {
+            CommandGroup(replacing: .newItem) { }
+            CommandGroup(after: .help) {
+                Button("關於 LocalNetSpeed") {
+                    // 可以在這裡添加關於對話框
+                    
+                }
+                .keyboardShortcut("?", modifiers: .command)
+            }
+        }
     }
 }
