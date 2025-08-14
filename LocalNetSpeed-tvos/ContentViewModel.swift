@@ -118,8 +118,9 @@ final class ContentViewModel: ObservableObject {
             return
         }
         
-        // 設定目標主機
+        // 設定目標主機並清除手動輸入
         host = trimmedHost
+        manualHost = trimmedHost // 確保顯示的是標準化的 IP
         
         // 在客戶端模式下立即開始測試
         if mode == .client {
