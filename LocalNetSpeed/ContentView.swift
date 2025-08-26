@@ -5,8 +5,34 @@ struct ContentView: View {
     @StateObject private var vm = ContentViewModel()
     @State private var localIP = "獲取中..."
     @State private var showCopiedAlert = false
+    @State private var selectedTab = 0
     
     var body: some View {
+        TabView(selection: $selectedTab) {
+            speedTestView
+                .tabItem {
+                    Label("本地測速", systemImage: "house.badge.wifi.fill")
+                }
+                .tag(0)
+            
+            FastComView()
+                .tabItem {
+                    Label("Fast.com", systemImage: "link.icloud.fill")
+                }
+                .tag(1)
+        }
+        .onAppear {
+            getLocalIPAddress()
+        }
+        .alert("已複製", isPresented: $showCopiedAlert) {
+            Button("確定") { }
+        } message: {
+            Text("IP 位址已複製到剪貼板")
+        }
+    }
+    
+    // 將原本的主要內容抽出為一個子 View
+    private var speedTestView: some View {
         VStack(alignment: .leading, spacing: 16) {
             Picker("模式", selection: $vm.mode) {
                 ForEach(SpeedTestMode.allCases) { m in
@@ -23,11 +49,10 @@ struct ContentView: View {
                 Text(localIP)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .textSelection(.enabled) // 可選取複製
+                    .textSelection(.enabled)
                 
                 Spacer()
                 
-                // 複製按鈕
                 Button(action: {
                     copyToClipboard(localIP)
                 }) {
@@ -69,7 +94,6 @@ struct ContentView: View {
             if vm.isRunning || (!vm.progressText.isEmpty && vm.progressText != "尚未開始") {
                 HStack {
                     if vm.isRunning && vm.mode == .server {
-                        // 伺服器運行指示器
                         HStack(spacing: 6) {
                             Circle()
                                 .fill(.green)
@@ -96,7 +120,6 @@ struct ContentView: View {
                     .foregroundColor(.secondary)
             }
             
-            // 速度結果顯示
             if let r = vm.result {
                 Text("速度: \(String(format: "%.2f", r.speedMBps)) MB/s")
                     .font(.headline)
@@ -135,10 +158,8 @@ struct ContentView: View {
             
             Spacer()
             
-            // 測試按鈕
             HStack(spacing: 12) {
                 if vm.isRunning {
-                    // 當運行中時顯示停止按鈕
                     Button("停止") {
                         vm.cancel()
                     }
@@ -146,7 +167,6 @@ struct ContentView: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity)
                     
-                    // 伺服器模式顯示額外的狀態資訊
                     if vm.mode == .server {
                         Button("強制停止伺服器") {
                             vm.forceStopServer()
@@ -157,7 +177,6 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                     }
                 } else {
-                    // 當未運行時顯示開始按鈕
                     Button(vm.mode == .server ? "啟動伺服器" : "開始測試") {
                         vm.start()
                     }
@@ -168,14 +187,6 @@ struct ContentView: View {
         }
         .padding()
         .animation(.default, value: vm.mode)
-        .onAppear {
-            getLocalIPAddress()
-        }
-        .alert("已複製", isPresented: $showCopiedAlert) {
-            Button("確定") { }
-        } message: {
-            Text("IP 位址已複製到剪貼板")
-        }
     }
     
     // 複製到剪貼板
@@ -186,11 +197,7 @@ struct ContentView: View {
         #elseif os(iOS)
         UIPasteboard.general.string = text
         #endif
-        
-        // 顯示複製成功提示
         showCopiedAlert = true
-        
-        // 觸覺回饋 (iOS) - 僅在實體裝置上執行
         #if os(iOS)
         if UIDevice.current.userInterfaceIdiom == .phone {
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
@@ -211,42 +218,33 @@ struct ContentView: View {
     }
 }
 
-// MARK: - 本機 IP 取得工具
+// MARK: - 本機 IP 取得工具 (保持原有)
 struct LocalIPHelper {
     static func getLocalIPAddress() async -> String {
         return await withCheckedContinuation { continuation in
             let monitor = NWPathMonitor()
             monitor.pathUpdateHandler = { path in
                 var result = "無法取得"
-                
-                // 使用 path.availableInterfaces 找到有效介面
                 for interface in path.availableInterfaces {
                     if interface.type == .wifi || interface.type == .wiredEthernet {
-                        // 嘗試取得該介面的 IP
                         if let ip = getIPAddress(for: interface) {
                             result = ip
                             break
                         }
                     }
                 }
-                
-                // 如果上述方法沒找到，使用傳統方法
                 if result == "無法取得" {
                     result = getIPAddressTraditional()
                 }
-                
                 monitor.cancel()
                 continuation.resume(returning: result)
             }
-            
             let queue = DispatchQueue(label: "NetworkMonitor")
             monitor.start(queue: queue)
         }
     }
     
     private static func getIPAddress(for interface: NWInterface) -> String? {
-        // Network.framework 介面資訊較難直接取得 IP
-        // 這裡回到傳統方法
         return nil
     }
     
@@ -258,19 +256,13 @@ struct LocalIPHelper {
             var ptr = ifaddr
             while ptr != nil {
                 defer { ptr = ptr?.pointee.ifa_next }
-                
                 let interface = ptr?.pointee
                 let addrFamily = interface?.ifa_addr.pointee.sa_family
-                
                 if addrFamily == UInt8(AF_INET) {
-                    // IPv4
                     let name = String(cString: (interface?.ifa_name)!)
-                    
-                    // 過濾有效的介面（排除 loopback）
                     if name == "en0" || name == "en1" || name.hasPrefix("en") && !name.contains("lo") {
                         var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
                         let addr = interface?.ifa_addr
-                        
                         if getnameinfo(addr, socklen_t((addr?.pointee.sa_len)!),
                                       &hostname, socklen_t(hostname.count),
                                       nil, socklen_t(0), NI_NUMERICHOST) == 0 {
@@ -282,7 +274,6 @@ struct LocalIPHelper {
             }
             freeifaddrs(ifaddr)
         }
-        
         return address
     }
 }
