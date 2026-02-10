@@ -135,15 +135,12 @@ struct ContentView: View {
                                         .foregroundColor(.secondary)
                                 }
                                 
-                                // 評級
-                                Text(eval.rating)
-                                    .font(.title3)
-                                
+ 
                                 // 統計數據
                                 HStack(spacing: 16) {
                                     statBadge(label: "總量", value: String(format: "%.1f MB", Double(r.transferredBytes)/1024/1024))
                                     statBadge(label: "耗時", value: String(format: "%.2f 秒", r.duration))
-                                    statBadge(label: "達成", value: String(format: "%.0f%%", eval.performancePercent))
+
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -212,16 +209,26 @@ struct ContentView: View {
         .onAppear {
             getLocalIPAddress()
         }
-        .alert("已複製", isPresented: $showCopiedAlert) {
-            Button("確定") { }
-        } message: {
-            Text("IP 位址已複製到剪貼板")
-        }
+
         .sheet(isPresented: $showFastCom) {
             FastComView()
         }
         .sheet(isPresented: $showLog) {
             LogView(vm: vm)
+        }
+        .overlay(alignment: .bottom) {
+            if showCopiedAlert {
+                Text("IP 位址已複製到剪貼板")
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.15), radius: 5, x: 0, y: 2)
+                    .padding(.bottom, 80) // Status bar height + padding
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
     }
     
@@ -233,7 +240,14 @@ struct ContentView: View {
         #elseif os(iOS)
         UIPasteboard.general.string = text
         #endif
-        showCopiedAlert = true
+        withAnimation {
+            showCopiedAlert = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation {
+                showCopiedAlert = false
+            }
+        }
         #if os(iOS)
         if UIDevice.current.userInterfaceIdiom == .phone {
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
