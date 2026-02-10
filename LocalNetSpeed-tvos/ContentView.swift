@@ -1,6 +1,94 @@
 import SwiftUI
 import Network
 
+// MARK: - Speed Gauge View (tvOS)
+struct SpeedGaugeView: View {
+    let speed: Double
+    let unit: String
+    let maxSpeed: Double
+    
+    @State private var animatedProgress: Double = 0
+    
+    private var progress: Double {
+        min(speed / maxSpeed, 1.0)
+    }
+    
+    private var gaugeColor: Color {
+        switch progress {
+        case 0.8...: return .green
+        case 0.5..<0.8: return .yellow
+        case 0.2..<0.5: return .orange
+        default: return .red
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            ZStack {
+                // Background arc
+                Circle()
+                    .trim(from: 0.15, to: 0.85)
+                    .stroke(
+                        Color.secondary.opacity(0.15),
+                        style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(90))
+                
+                // Foreground arc
+                Circle()
+                    .trim(from: 0.15, to: 0.15 + animatedProgress * 0.7)
+                    .stroke(
+                        gaugeColor,
+                        style: StrokeStyle(lineWidth: 18, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(90))
+                    .shadow(color: gaugeColor.opacity(0.5), radius: 6, x: 0, y: 0)
+                
+                // Speed text
+                VStack(spacing: 4) {
+                    Text(String(format: "%.1f", speed))
+                        .font(.system(size: 64, weight: .bold, design: .rounded))
+                        .contentTransition(.numericText())
+                    Text(unit)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(width: 260, height: 260)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 1.2, dampingFraction: 0.7)) {
+                animatedProgress = progress
+            }
+        }
+        .onChange(of: speed) { _, _ in
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.7)) {
+                animatedProgress = progress
+            }
+        }
+    }
+}
+
+// MARK: - Card Style (tvOS)
+struct CardStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(24)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.thinMaterial)
+            )
+    }
+}
+
+extension View {
+    func cardStyle() -> some View {
+        modifier(CardStyle())
+    }
+}
+
+// MARK: - Content View
 struct ContentView: View {
     @StateObject private var vm = ContentViewModel()
     @FocusState private var focusedButton: FocusableButton?
@@ -16,45 +104,54 @@ struct ContentView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 22) {
-                // 標題區域
-                Text("區域網路速度測試")
-                    .font(.system(size: 30))
-                    .foregroundColor(.primary)
-                    .padding(.top, 10)
+            VStack(spacing: 28) {
+                // Header
+                HStack(spacing: 12) {
+                    Image(systemName: "network")
+                        .font(.system(size: 28))
+                        .foregroundColor(.accentColor)
+                    Text("區域網路速度測試")
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundColor(.primary)
+                }
+                .padding(.top, 10)
                 
-                // 本機 IP 顯示區域
+                // Local IP Card
                 VStack(spacing: 15) {
-                    Text("本機 IP 位址")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        
+                    HStack(spacing: 8) {
+                        Image(systemName: "wifi")
+                            .font(.title3)
+                            .foregroundColor(.accentColor)
+                        Text("本機 IP 位址")
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                    }
                     
                     HStack(spacing: 20) {
                         Text(localIP)
-                            .font(.title3)
+                            .font(.system(.title3, design: .monospaced))
                             .fontWeight(.bold)
                             .foregroundColor(localIP == "獲取中..." || localIP == "無法取得" ? .secondary : .green)
                             .padding()
-                            
                             .clipShape(RoundedRectangle(cornerRadius: 15))
                         
-                        Button("重新整理") {
+                        Button {
                             getLocalIPAddress()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.clockwise")
+                                Text("重新整理")
+                            }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
                         .tint(.blue)
                     }
                 }
-                .padding()
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .cardStyle()
 
-                // 模式選擇區域
+                // Mode Picker
                 VStack(spacing: 15) {
-                   
-                    
                     Picker("測試模式", selection: $vm.mode) {
                         ForEach(SpeedTestMode.allCases) { mode in
                             Label(mode.rawValue, systemImage: icon(for: mode))
@@ -74,57 +171,41 @@ struct ContentView: View {
                     .frame(width: 600)
                 }
 
-                // 客戶端模式的伺服器選擇
+                // Client Mode: Server Selection
                 if vm.mode == .client {
                     VStack(spacing: 30) {
-                        Text("輸入目標伺服器 IP")
-                            
+                        HStack(spacing: 8) {
+                            Image(systemName: "link")
+                                .foregroundColor(.accentColor)
+                            Text("輸入目標伺服器 IP")
+                        }
                         
-                        // 手動輸入區域
-                        /*
                         VStack(spacing: 20) {
-                            HStack(spacing: 15) {
-                                TextField("目標 IP:", text: $vm.manualHost)
-                                    .font(.title3)
-                                    .frame(width: 500)
-                                    .focused($focusedButton, equals: .manualInput)
-                                        .onSubmit {
-                                            vm.finishManualInput()
-                                            vm.start()           // 接著立即開始測試
-
-                                        }
-                            }
-                          */
-                        
-                        // 在 ContentView 的 if vm.mode == .client { ... } 內部
-
-                        // ... 原本的 VStack ...
-                        VStack(spacing: 20) {
-                            // 用一個 HStack 來顯示當前 IP 並提供一個編輯按鈕
                             HStack {
+                                Image(systemName: "server.rack")
+                                    .foregroundColor(.secondary)
                                 Text("目標 IP: \(vm.manualHost.isEmpty ? "尚未設定" : vm.manualHost)")
                                     .font(.title3)
 
-                                Button("編輯") {
+                                Button {
                                     isShowingIPInputView = true
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "pencil")
+                                        Text("編輯")
+                                    }
                                 }
                                 .focused($focusedButton, equals: .manualInput)
                             }
-                        
-                        .padding()
-                        .background(.thinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                        // 使用 .sheet 來彈出全螢幕的 IP 輸入畫面
-                        .sheet(isPresented: $isShowingIPInputView) {
-                            IPInputView { ipString in
-                                // 當在 IPInputView 按下 "Done" 時，會執行這裡的程式碼
-                                vm.manualHost = ipString // 更新 ViewModel
-                                vm.finishManualInput()   // 呼叫原本的函式來確認 IP
-                                isShowingIPInputView = false // 關閉輸入畫面
-                                vm.start() // 自動開始測試
+                            .cardStyle()
+                            .sheet(isPresented: $isShowingIPInputView) {
+                                IPInputView { ipString in
+                                    vm.manualHost = ipString
+                                    vm.finishManualInput()
+                                    isShowingIPInputView = false
+                                    vm.start()
+                                }
                             }
-                        }
-                        // ... 後續的程式碼 ...
                         
                             VStack(spacing: 12) {
                                 if localIP != "獲取中..." && localIP != "無法取得" {
@@ -138,62 +219,74 @@ struct ContentView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
-                                
-                               
                             }
                         }
-                        .padding()
-                        .background(.thinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .cardStyle()
 
-                        // 清除選擇按鈕
+                        // Clear button
                         if !vm.getTargetHost().isEmpty {
                             HStack(spacing: 20) {
-                                Button("清除輸入") {
+                                Button {
                                     vm.clearPresetSelection()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "xmark.circle")
+                                        Text("清除輸入")
+                                    }
                                 }
                                 .buttonStyle(.bordered)
                                 .controlSize(.large)
                                 .focused($focusedButton, equals: .clearSelection)
-                                
-                                
                             }
                         }
                     }
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
                 
-                // 伺服器狀態顯示
+                // Server Status
                 if vm.mode == .server && vm.isRunning {
                     VStack(spacing: 15) {
-                        Text("伺服器狀態")
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 10, height: 10)
+                                .scaleEffect(vm.isRunning ? 1.0 : 0.5)
+                                .animation(
+                                    .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                                    value: vm.isRunning
+                                )
+                            Text("伺服器狀態")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                        }
                         
                         VStack(spacing: 20) {
-                            // 連線資訊
+                            // Connection info
                             if localIP != "獲取中..." && localIP != "無法取得" {
                                 VStack(spacing: 8) {
                                     Text("伺服器位址")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text("\(localIP):\(vm.port)")
-                                        .font(.title2)
+                                        .font(.system(.title2, design: .monospaced))
                                         .fontWeight(.bold)
                                         .foregroundColor(.blue)
                                 }
                                 .padding()
-                                .background(.blue.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(.blue.opacity(0.1))
+                                )
                             }
                             
-                            // 狀態資訊
+                            // Stats
                             HStack(spacing: 30) {
                                 VStack {
                                     Text("埠號")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text(vm.port)
-                                        .font(.title2)
+                                        .font(.system(.title2, design: .monospaced))
                                         .fontWeight(.bold)
                                 }
                                 VStack {
@@ -207,57 +300,113 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        .padding()
-                        .background(.thinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                        .cardStyle()
                     }
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 }
 
-                // 進度顯示
+                // Progress
                 VStack(spacing: 20) {
-                    Text("測試狀態")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                    HStack(spacing: 8) {
+                        if vm.isRunning {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text("測試狀態")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                    }
+                    
                     Text(vm.progressText)
                         .font(.title3)
                         .foregroundColor(vm.isRunning ? .blue : .secondary)
                         .padding()
-                        .background(.thinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 15))
                         .frame(minWidth: 400)
+                        .background(
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(.thinMaterial)
+                        )
                 }
 
-                // 結果顯示
+                // Results
                 if let result = vm.result {
                     VStack(spacing: 25) {
-                        Text("測試結果").font(.title).fontWeight(.bold)
+                        Text("測試結果")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        
                         VStack(spacing: 20) {
-                            VStack(spacing: 10) {
-                                Text("網路速度").font(.title2).foregroundColor(.secondary)
-                                let speedVal = vm.selectedUnit.convert(fromMBps: result.speedMBps)
-                                Text("\(String(format: "%.2f", speedVal)) \(vm.selectedUnit.rawValue)").font(.system(size: 72, weight: .bold)).foregroundColor(.green)
-                            }
-                            VStack(spacing: 10) {
-                                Text("效能評級").font(.title2).foregroundColor(.secondary)
-                                Text(result.evaluation.rating).font(.system(size: 36, weight: .semibold)).foregroundColor(.primary)
-                            }
+                            let speedVal = vm.selectedUnit.convert(fromMBps: result.speedMBps)
+                            let maxSpeed: Double = {
+                                switch vm.selectedUnit {
+                                case .mbps: return 1000
+                                case .gbps: return 1
+                                case .mbs: return 125
+                                case .kbps: return 1_000_000
+                                }
+                            }()
+                            
+                            // Speed Gauge
+                            SpeedGaugeView(
+                                speed: speedVal,
+                                unit: vm.selectedUnit.rawValue,
+                                maxSpeed: maxSpeed
+                            )
+                            
+                            // Evaluation
+                            Text(result.evaluation.rating)
+                                .font(.system(size: 32, weight: .semibold))
+                            
+                            // Stats
                             VStack(spacing: 15) {
                                 HStack(spacing: 40) {
-                                    VStack { Text("傳輸量").font(.caption).foregroundColor(.secondary); Text("\(String(format: "%.2f", Double(result.transferredBytes)/1024/1024)) MB").font(.title3).fontWeight(.medium) }
-                                    VStack { Text("耗時").font(.caption).foregroundColor(.secondary); Text("\(String(format: "%.2f", result.duration)) 秒").font(.title3).fontWeight(.medium) }
-                                    VStack { Text("達成率").font(.caption).foregroundColor(.secondary); Text("\(String(format: "%.1f", result.evaluation.performancePercent))%").font(.title3).fontWeight(.medium) }
+                                    VStack {
+                                        Image(systemName: "arrow.up.arrow.down")
+                                            .foregroundColor(.accentColor)
+                                        Text("傳輸量")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("\(String(format: "%.2f", Double(result.transferredBytes)/1024/1024)) MB")
+                                            .font(.title3)
+                                            .fontWeight(.medium)
+                                    }
+                                    VStack {
+                                        Image(systemName: "clock")
+                                            .foregroundColor(.accentColor)
+                                        Text("耗時")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("\(String(format: "%.2f", result.duration)) 秒")
+                                            .font(.title3)
+                                            .fontWeight(.medium)
+                                    }
+                                    VStack {
+                                        Image(systemName: "chart.bar")
+                                            .foregroundColor(.accentColor)
+                                        Text("達成率")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text("\(String(format: "%.1f", result.evaluation.performancePercent))%")
+                                            .font(.title3)
+                                            .fontWeight(.medium)
+                                    }
                                 }
                             }
                         }
-                        .padding(30).background(.thinMaterial).clipShape(RoundedRectangle(cornerRadius: 25))
+                        .cardStyle()
                     }
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
                 }
 
-                // 控制按鈕區域
+                // Control Buttons
                 VStack(spacing: 30) {
-                    // 主要控制按鈕
-                    Button(vm.isRunning ? "停止測試" : "開始測試") {
+                    Button {
                         vm.isRunning ? vm.cancel() : vm.start()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: vm.isRunning ? "stop.circle.fill" : "play.circle.fill")
+                            Text(vm.isRunning ? "停止測試" : "開始測試")
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
@@ -265,10 +414,15 @@ struct ContentView: View {
                     .tint(vm.isRunning ? .red : .blue)
                     .focused($focusedButton, equals: .startStop)
                     
-                    // 伺服器強制停止按鈕
+                    // Force stop server
                     if vm.mode == .server && vm.isRunning {
-                        Button("強制停止伺服器") {
+                        Button {
                             vm.forceStopServer()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "xmark.octagon.fill")
+                                Text("強制停止伺服器")
+                            }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
@@ -277,10 +431,15 @@ struct ContentView: View {
                         .focused($focusedButton, equals: .forceStop)
                     }
                     
-                    // 清除記錄按鈕
+                    // Clear log
                     if !vm.log.isEmpty {
-                        Button("清除記錄") {
+                        Button {
                             vm.clearLog()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "trash")
+                                Text("清除記錄")
+                            }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
@@ -294,14 +453,14 @@ struct ContentView: View {
             }
             .padding(.horizontal, 60)
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: vm.mode)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: vm.isRunning)
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vm.result != nil)
         .onAppear {
-            // 設定初始焦點
             focusedButton = .modeSelection
-            // 獲取本機 IP
             getLocalIPAddress()
         }
         .onChange(of: vm.mode) { _, newMode in
-            // 當模式改變時，自動設定焦點到相應區域
             if newMode == .client {
                 focusedButton = .manualInput
             } else {
@@ -310,7 +469,7 @@ struct ContentView: View {
         }
     }
     
-    // 輔助函數：根據模式返回圖示名稱
+    // Helper: icon for mode
     private func icon(for mode: SpeedTestMode) -> String {
         switch mode {
         case .server:
@@ -320,7 +479,7 @@ struct ContentView: View {
         }
     }
     
-    // 獲取本機 IP 位址
+    // Get local IP
     private func getLocalIPAddress() {
         Task {
             let ip = await LocalIPHelper.getLocalIPAddress()
@@ -339,10 +498,8 @@ struct LocalIPHelper {
             monitor.pathUpdateHandler = { path in
                 var result = "無法取得"
                 
-                // 使用 path.availableInterfaces 找到有效介面
                 for interface in path.availableInterfaces {
                     if interface.type == .wifi || interface.type == .wiredEthernet {
-                        // 嘗試取得該介面的 IP
                         if let ip = getIPAddress(for: interface) {
                             result = ip
                             break
@@ -350,7 +507,6 @@ struct LocalIPHelper {
                     }
                 }
                 
-                // 如果上述方法沒找到，使用傳統方法
                 if result == "無法取得" {
                     result = getIPAddressTraditional()
                 }
@@ -365,8 +521,6 @@ struct LocalIPHelper {
     }
     
     private static func getIPAddress(for interface: NWInterface) -> String? {
-        // Network.framework 介面資訊較難直接取得 IP
-        // 這裡回到傳統方法
         return nil
     }
     
@@ -383,10 +537,8 @@ struct LocalIPHelper {
                 let addrFamily = interface?.ifa_addr.pointee.sa_family
                 
                 if addrFamily == UInt8(AF_INET) {
-                    // IPv4
                     let name = String(cString: (interface?.ifa_name)!)
                     
-                    // 過濾有效的介面（排除 loopback）
                     if name == "en0" || name == "en1" || name.hasPrefix("en") && !name.contains("lo") {
                         var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
                         let addr = interface?.ifa_addr

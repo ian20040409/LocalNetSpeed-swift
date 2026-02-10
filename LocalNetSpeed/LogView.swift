@@ -12,6 +12,7 @@ struct LogView: View {
                         .font(.system(.footnote, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
+                        .foregroundColor(vm.log.isEmpty ? .secondary : .primary)
                 }
             }
             .navigationTitle("日誌")
@@ -24,8 +25,14 @@ struct LogView: View {
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
                     if !vm.log.isEmpty {
-                        Button("清除") {
+                        Button {
                             vm.clearLog()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "trash")
+                                    .font(.caption)
+                                Text("清除")
+                            }
                         }
                         .foregroundColor(.red)
                     }

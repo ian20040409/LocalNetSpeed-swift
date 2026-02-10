@@ -12,9 +12,8 @@ struct LocalNetSpeed_macApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .frame(width: 640, height: 940)
         }
-        .windowResizability(.contentSize)
+        .windowResizability(.automatic)
         .commands {
             CommandGroup(replacing: .newItem) { }
             CommandGroup(after: .help) {
