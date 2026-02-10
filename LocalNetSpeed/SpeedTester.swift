@@ -103,13 +103,15 @@ extension SpeedTester {
             return
         }
         
-        let startRef = Atomic<Date?>(nil)
-        let totalBytes = Atomic<Int>(0)
         let connectionCount = Atomic<Int>(0)
         
         listener?.newConnectionHandler = { [weak self] conn in
             guard let self else { return }
             self.serverConnection = conn
+            
+            // 每個連線獨立計算
+            let startRef = Atomic<Date?>(nil)
+            let totalBytes = Atomic<Int>(0)
             
             // 增加連線計數
             let currentCount = connectionCount.addAndGet(1)

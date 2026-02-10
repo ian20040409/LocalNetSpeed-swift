@@ -14,7 +14,7 @@ final class ContentViewModel: ObservableObject {
     @Published var sizeMB: String = "100"
     @Published var isRunning = false
     @Published var progressText = "尚未開始"
-    @Published var progressText = "尚未開始"
+
     @Published var log = ""
     @Published var result: SpeedTestResult?
 

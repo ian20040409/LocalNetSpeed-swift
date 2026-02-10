@@ -1,38 +1,22 @@
-//
-//  WebView.swift
-//  LocalNetSpeed
-//
-//  Created by 林恩佑 on 2025/8/15.
-//
-
-
 import SwiftUI
 import WebKit
+#if os(iOS)
+import SafariServices
+#endif
 
-struct WebView: UIViewRepresentable {
+#if os(iOS)
+struct SFSafariView: UIViewControllerRepresentable {
     let url: URL
-    let allowsBackForwardNavigationGestures: Bool
     
-    init(url: URL, allowsBackForwardNavigationGestures: Bool = true) {
-        self.url = url
-        self.allowsBackForwardNavigationGestures = allowsBackForwardNavigationGestures
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        return SFSafariViewController(url: url, configuration: config)
     }
     
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        // 需要的話可在這裡調整 preferences 或 userContentController
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.allowsBackForwardNavigationGestures = allowsBackForwardNavigationGestures
-        webView.customUserAgent = "LocalNetSpeedApp"
-        let request = URLRequest(url: url)
-        webView.load(request)
-        return webView
-    }
-    
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        // 若之後需要重新載入或動態變更可在此處理
-    }
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) { }
 }
+#endif
 
 #if os(macOS)
 struct WebViewMac: NSViewRepresentable {
@@ -58,37 +42,12 @@ struct WebViewMac: NSViewRepresentable {
 #endif
 
 struct FastComView: View {
-    @State private var reloadToken = 0
-    
     var body: some View {
         #if os(macOS)
-        ZStack {
-            WebViewMac(url: URL(string: "https://fast.com")!)
-                .id(reloadToken)
-            overlayControls
-        }
+        WebViewMac(url: URL(string: "https://fast.com")!)
         #else
-        ZStack {
-            WebView(url: URL(string: "https://fast.com")!)
-                .id(reloadToken)
-            overlayControls
-        }
+        SFSafariView(url: URL(string: "https://fast.com")!)
+            .ignoresSafeArea()
         #endif
-    }
-    
-    private var overlayControls: some View {
-        VStack {
-            HStack {
-                Spacer()
-                Button {
-                    reloadToken += 1  // 透過變更 id 重新建立 WebView 達到重新整理
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .padding()
-            }
-            Spacer()
-        }
     }
 }

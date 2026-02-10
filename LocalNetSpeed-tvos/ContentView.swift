@@ -64,6 +64,14 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 600)
                     .focused($focusedButton, equals: .modeSelection)
+                    
+                    Picker("單位", selection: $vm.selectedUnit) {
+                        ForEach(ContentViewModel.SpeedUnit.allCases) { unit in
+                            Text(unit.rawValue).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 600)
                 }
 
                 // 客戶端模式的伺服器選擇
@@ -226,7 +234,8 @@ struct ContentView: View {
                         VStack(spacing: 20) {
                             VStack(spacing: 10) {
                                 Text("網路速度").font(.title2).foregroundColor(.secondary)
-                                Text("\(String(format: "%.2f", result.speedMBps)) MB/s").font(.system(size: 72, weight: .bold)).foregroundColor(.green)
+                                let speedVal = vm.selectedUnit.convert(fromMBps: result.speedMBps)
+                                Text("\(String(format: "%.2f", speedVal)) \(vm.selectedUnit.rawValue)").font(.system(size: 72, weight: .bold)).foregroundColor(.green)
                             }
                             VStack(spacing: 10) {
                                 Text("效能評級").font(.title2).foregroundColor(.secondary)
