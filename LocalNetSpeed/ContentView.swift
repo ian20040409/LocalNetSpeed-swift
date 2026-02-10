@@ -110,39 +110,18 @@ struct ContentView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Mode Picker with icons
-                        HStack(spacing: 0) {
+                        // Mode Picker
+                        Picker("模式", selection: $vm.mode) {
                             ForEach(SpeedTestMode.allCases) { m in
-                                Button {
-                                    Haptic.selection()
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                        vm.mode = m
-                                    }
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: m == .server ? "server.rack" : "iphone")
-                                            .font(.subheadline)
-                                        Text(m.rawValue)
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(vm.mode == m ? Color.accentColor : Color.clear)
-                                            .opacity(vm.mode == m ? 1 : 0)
-                                    )
-                                    .foregroundColor(vm.mode == m ? .white : .primary)
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(vm.isRunning)
+                                Label(m.rawValue, systemImage: m == .server ? "server.rack" : "iphone")
+                                    .tag(m)
                             }
                         }
-                        .padding(4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(.systemGray5))
-                        )
+                        .pickerStyle(.segmented)
+                        .disabled(vm.isRunning)
+                        .onChange(of: vm.mode) { _, _ in
+                            Haptic.selection()
+                        }
                         
                         // Local IP Card
                         HStack(spacing: 10) {
@@ -167,27 +146,27 @@ struct ContentView: View {
                                 copyToClipboard(localIP)
                             }) {
                                 Image(systemName: "doc.on.doc")
-                                    .font(.caption)
+                                    .font(.body)
                             }
                             .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .controlSize(.regular)
                             .disabled(localIP == "獲取中..." || localIP == "無法取得")
                             
                             Button {
                                 getLocalIPAddress()
                             } label: {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.caption)
+                                    .font(.body)
                             }
                             .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            .controlSize(.regular)
                         }
                         .cardStyle()
                         
                         // Client: Server IP input
                         if vm.mode == .client {
                             HStack {
-                                Image(systemName: "link")
+                               Image(systemName: "link")
                                     .foregroundColor(.secondary)
                                 TextField("伺服器 IP", text: $vm.host)
                                     .textFieldStyle(.roundedBorder)
@@ -199,10 +178,10 @@ struct ContentView: View {
                                     }
                                 } label: {
                                     Image(systemName: "clipboard")
-                                        .font(.caption)
+                                        .font(.body)
                                 }
                                 .buttonStyle(.bordered)
-                                .controlSize(.small)
+                                .controlSize(.regular)
                             }
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
@@ -384,7 +363,6 @@ struct ContentView: View {
                             .buttonStyle(.bordered)
                             .foregroundColor(.orange)
                             .controlSize(.large)
-                            .font(.caption)
                         }
                     } else {
                         Button {

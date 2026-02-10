@@ -159,38 +159,14 @@ struct ContentView: View {
                     }
                     
                     // Mode Picker with icons
-                    HStack(spacing: 0) {
+                    Picker("模式", selection: $vm.mode) {
                         ForEach(SpeedTestMode.allCases) { m in
-                            Button {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    vm.mode = m
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: m == .server ? "server.rack" : "desktopcomputer")
-                                        .font(.subheadline)
-                                    Text(m.rawValue)
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(vm.mode == m ? Color.accentColor : Color.clear)
-                                        .opacity(vm.mode == m ? 1 : 0)
-                                )
-                                .foregroundColor(vm.mode == m ? .white : .primary)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(vm.isRunning)
+                            Label(m.rawValue, systemImage: m == .server ? "server.rack" : "desktopcomputer")
+                                .tag(m)
                         }
                     }
-                    .padding(4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.secondary.opacity(0.1))
-                    )
+                    .pickerStyle(.segmented)
+                    .disabled(vm.isRunning)
                     
                     // Local IP Card
                     HStack(spacing: 10) {
@@ -215,7 +191,7 @@ struct ContentView: View {
                             copyToClipboard(localIP)
                         }) {
                             Image(systemName: "doc.on.doc")
-                                .font(.caption)
+                                .font(.body)
                         }
                         .buttonStyle(.bordered)
                         .help("複製 IP 位址")
@@ -225,7 +201,7 @@ struct ContentView: View {
                             getLocalIPAddress()
                         } label: {
                             Image(systemName: "arrow.clockwise")
-                                .font(.caption)
+                                .font(.body)
                         }
                         .buttonStyle(.bordered)
                     }
@@ -428,7 +404,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showLog) {
             MacLogView(vm: vm)
-                .frame(minWidth: 400, minHeight: 400)
+
         }
         .overlay(alignment: .bottom) {
             if showCopiedAlert {

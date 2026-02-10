@@ -4,7 +4,7 @@ import Combine
 @MainActor
 final class ContentViewModel: ObservableObject {
     @Published var mode: SpeedTestMode = .server
-    @Published var selectedUnit: SpeedUnit = .mbps
+    @Published var selectedUnit: SpeedUnit = .gbps
     @Published var host: String = ""
     @Published var port: String = "65432"
     @Published var sizeMB: String = "100"
@@ -138,13 +138,27 @@ final class ContentViewModel: ObservableObject {
     }
     
     private func handleCompletion(_ res: Result<SpeedTestResult, Error>) {
-        isRunning = false
         switch res {
         case .success(let r):
             result = r
-            progressText = "完成"
             append(format(r))
+            
+            if mode == .server {
+                isRunning = true
+                progressText = "等待連線..."
+            } else {
+                isRunning = false
+                progressText = "完成"
+            }
         case .failure(let e):
+            // Ignore cancelled error if we initiated the cancel
+            let nsError = e as NSError
+            if nsError.domain == "Cancelled" && nsError.code == -999 {
+                // Do nothing, cancel() already handled state
+                return
+            }
+            
+            isRunning = false
             progressText = "錯誤：\(e.localizedDescription)"
             append("錯誤：\(e)")
         }

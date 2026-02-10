@@ -25,7 +25,6 @@ struct SpeedGaugeView: View {
     var body: some View {
         VStack(spacing: 12) {
             ZStack {
-                // Background arc
                 Circle()
                     .trim(from: 0.15, to: 0.85)
                     .stroke(
@@ -34,7 +33,6 @@ struct SpeedGaugeView: View {
                     )
                     .rotationEffect(.degrees(90))
                 
-                // Foreground arc
                 Circle()
                     .trim(from: 0.15, to: 0.15 + animatedProgress * 0.7)
                     .stroke(
@@ -44,7 +42,6 @@ struct SpeedGaugeView: View {
                     .rotationEffect(.degrees(90))
                     .shadow(color: gaugeColor.opacity(0.5), radius: 6, x: 0, y: 0)
                 
-                // Speed text
                 VStack(spacing: 4) {
                     Text(String(format: "%.1f", speed))
                         .font(.system(size: 64, weight: .bold, design: .rounded))
@@ -74,9 +71,9 @@ struct SpeedGaugeView: View {
 struct CardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .padding(24)
+            .padding(20)
             .background(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 16)
                     .fill(.thinMaterial)
             )
     }
@@ -100,312 +97,212 @@ struct ContentView: View {
         case modeSelection
         case manualInput, clearSelection
         case startStop, forceStop
-        case clearLog
+        case clearLog, refresh
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 28) {
-                // Header
-                HStack(spacing: 12) {
-                    Image(systemName: "network")
-                        .font(.system(size: 28))
-                        .foregroundColor(.accentColor)
-                    Text("區域網路速度測試")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundColor(.primary)
-                }
-                .padding(.top, 10)
+        VStack(spacing: 16) {
+            // Row 1: Header + IP (compact)
+            HStack {
+                Image(systemName: "network")
+                    .font(.title2)
+                    .foregroundColor(.accentColor)
+                Text("區域網路速度測試")
+                    .font(.title3)
+                    .fontWeight(.semibold)
                 
-                // Local IP Card
-                VStack(spacing: 15) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "wifi")
-                            .font(.title3)
-                            .foregroundColor(.accentColor)
-                        Text("本機 IP 位址")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
-                    
-                    HStack(spacing: 20) {
-                        Text(localIP)
-                            .font(.system(.title3, design: .monospaced))
-                            .fontWeight(.bold)
-                            .foregroundColor(localIP == "獲取中..." || localIP == "無法取得" ? .secondary : .green)
-                            .padding()
-                            .clipShape(RoundedRectangle(cornerRadius: 15))
-                        
-                        Button {
-                            getLocalIPAddress()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "arrow.clockwise")
-                                Text("重新整理")
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
-                        .tint(.blue)
-                    }
-                }
-                .cardStyle()
-
-                // Mode Picker
-                VStack(spacing: 15) {
-                    Picker("測試模式", selection: $vm.mode) {
-                        ForEach(SpeedTestMode.allCases) { mode in
-                            Label(mode.rawValue, systemImage: icon(for: mode))
-                                .tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 600)
-                    .focused($focusedButton, equals: .modeSelection)
-                    
-                    Picker("單位", selection: $vm.selectedUnit) {
-                        ForEach(ContentViewModel.SpeedUnit.allCases) { unit in
-                            Text(unit.rawValue).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 600)
-                }
-
-                // Client Mode: Server Selection
-                if vm.mode == .client {
-                    VStack(spacing: 30) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "link")
-                                .foregroundColor(.accentColor)
-                            Text("輸入目標伺服器 IP")
-                        }
-                        
-                        VStack(spacing: 20) {
-                            HStack {
-                                Image(systemName: "server.rack")
-                                    .foregroundColor(.secondary)
-                                Text("目標 IP: \(vm.manualHost.isEmpty ? "尚未設定" : vm.manualHost)")
-                                    .font(.title3)
-
-                                Button {
-                                    isShowingIPInputView = true
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "pencil")
-                                        Text("編輯")
-                                    }
-                                }
-                                .focused($focusedButton, equals: .manualInput)
-                            }
-                            .cardStyle()
-                            .sheet(isPresented: $isShowingIPInputView) {
-                                IPInputView { ipString in
-                                    vm.manualHost = ipString
-                                    vm.finishManualInput()
-                                    isShowingIPInputView = false
-                                    vm.start()
-                                }
-                            }
-                        
-                            VStack(spacing: 12) {
-                                if localIP != "獲取中..." && localIP != "無法取得" {
-                                    VStack(spacing: 8) {
-                                        Text("本機 IP: \(localIP)")
-                                            .font(.callout)
-                                            .foregroundColor(.green)
-                                            .fontWeight(.medium)
-                                        Text("請輸入其他裝置的 IP 位址進行測試")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                        .cardStyle()
-
-                        // Clear button
-                        if !vm.getTargetHost().isEmpty {
-                            HStack(spacing: 20) {
-                                Button {
-                                    vm.clearPresetSelection()
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "xmark.circle")
-                                        Text("清除輸入")
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.large)
-                                .focused($focusedButton, equals: .clearSelection)
-                            }
-                        }
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                }
+                Spacer()
                 
-                // Server Status
-                if vm.mode == .server && vm.isRunning {
-                    VStack(spacing: 15) {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 10, height: 10)
-                                .scaleEffect(vm.isRunning ? 1.0 : 0.5)
-                                .animation(
-                                    .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
-                                    value: vm.isRunning
-                                )
-                            Text("伺服器狀態")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                        }
-                        
-                        VStack(spacing: 20) {
-                            // Connection info
-                            if localIP != "獲取中..." && localIP != "無法取得" {
-                                VStack(spacing: 8) {
-                                    Text("伺服器位址")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text("\(localIP):\(vm.port)")
-                                        .font(.system(.title2, design: .monospaced))
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.blue)
-                                }
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(.blue.opacity(0.1))
-                                )
-                            }
-                            
-                            // Stats
-                            HStack(spacing: 30) {
-                                VStack {
-                                    Text("埠號")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text(vm.port)
-                                        .font(.system(.title2, design: .monospaced))
-                                        .fontWeight(.bold)
-                                }
-                                VStack {
-                                    Text("連線數")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text("\(vm.serverConnectionCount)")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.green)
-                                }
-                            }
-                        }
-                        .cardStyle()
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                }
-
-                // Progress
-                VStack(spacing: 20) {
-                    HStack(spacing: 8) {
-                        if vm.isRunning {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                        Text("測試狀態")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                    }
-                    
-                    Text(vm.progressText)
-                        .font(.title3)
-                        .foregroundColor(vm.isRunning ? .blue : .secondary)
-                        .padding()
-                        .frame(minWidth: 400)
-                        .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(.thinMaterial)
-                        )
-                }
-
-
+                Image(systemName: "wifi")
+                    .foregroundColor(.accentColor)
+                Text(localIP)
+                    .font(.system(.body, design: .monospaced))
+                    .fontWeight(.bold)
+                    .foregroundColor(localIP == "獲取中..." || localIP == "無法取得" ? .secondary : .green)
                 
-                // Result sheet logic handled via onChange and sheet modifier
-
-                // Control Buttons
-                VStack(spacing: 30) {
-                    if vm.isRunning {
-                        // Stop button
-                        Button {
-                            vm.cancel()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "stop.circle.fill")
-                                Text(vm.mode == .server ? "停止伺服器" : "停止測試")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .font(.system(size: 24, weight: .semibold))
-                        .tint(.red)
-                        .focused($focusedButton, equals: .startStop)
-                        
-                        // Force stop server
-                        if vm.mode == .server {
-                            Button {
-                                vm.forceStopServer()
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "xmark.octagon.fill")
-                                    Text("強制停止伺服器")
-                                }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.large)
-                            .font(.title3)
-                            .tint(.orange)
-                            .focused($focusedButton, equals: .forceStop)
-                        }
-                    } else {
-                        // Start button
-                        Button {
-                            vm.start()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: vm.mode == .server ? "play.circle.fill" : "bolt.circle.fill")
-                                Text(vm.mode == .server ? "啟動伺服器" : "開始測試")
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .font(.system(size: 24, weight: .semibold))
-                        .tint(.blue)
-                        .focused($focusedButton, equals: .startStop)
-                    }
-                    
-                    // Clear log
-                    if !vm.log.isEmpty {
-                        Button {
-                            vm.clearLog()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "trash")
-                                Text("清除記錄")
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.regular)
-                        .font(.title3)
-                        .tint(.gray)
-                        .focused($focusedButton, equals: .clearLog)
-                    }
+                Button {
+                    getLocalIPAddress()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
                 }
-                
-                Spacer(minLength: 50)
+                .buttonStyle(.bordered)
+                .focused($focusedButton, equals: .refresh)
             }
             .padding(.horizontal, 60)
+            
+            // Row 2: Mode + Unit pickers (side by side)
+            HStack(spacing: 30) {
+                Picker("模式", selection: $vm.mode) {
+                    ForEach(SpeedTestMode.allCases) { mode in
+                        Label(mode.rawValue, systemImage: icon(for: mode))
+                            .tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .focused($focusedButton, equals: .modeSelection)
+                
+                Picker("單位", selection: $vm.selectedUnit) {
+                    ForEach(ContentViewModel.SpeedUnit.allCases) { unit in
+                        Text(unit.rawValue).tag(unit)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+            .padding(.horizontal, 60)
+            
+            // Row 3: Client IP input (only in client mode)
+            if vm.mode == .client {
+                HStack(spacing: 16) {
+                    Image(systemName: "server.rack")
+                        .foregroundColor(.secondary)
+                    Text("目標 IP:")
+                        .foregroundColor(.secondary)
+                    Text(vm.manualHost.isEmpty ? "尚未設定" : vm.manualHost)
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.medium)
+                    
+                    Button {
+                        isShowingIPInputView = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "pencil")
+                            Text("編輯")
+                        }
+                    }
+                    .focused($focusedButton, equals: .manualInput)
+                    
+                    if !vm.getTargetHost().isEmpty {
+                        Button {
+                            vm.clearPresetSelection()
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .focused($focusedButton, equals: .clearSelection)
+                    }
+                }
+                .padding(.horizontal, 60)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .sheet(isPresented: $isShowingIPInputView) {
+                    IPInputView { ipString in
+                        vm.manualHost = ipString
+                        vm.finishManualInput()
+                        isShowingIPInputView = false
+                        vm.start()
+                    }
+                }
+            }
+            
+            // Row 4: Status bar
+            HStack(spacing: 16) {
+                // Server status indicator
+                if vm.mode == .server && vm.isRunning {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 10, height: 10)
+                            .scaleEffect(vm.isRunning ? 1.0 : 0.5)
+                            .animation(
+                                .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
+                                value: vm.isRunning
+                            )
+                        Text("運行中")
+                            .font(.callout)
+                            .foregroundColor(.green)
+                        
+                        if localIP != "獲取中..." && localIP != "無法取得" {
+                            Text("\(localIP):\(vm.port)")
+                                .font(.system(.callout, design: .monospaced))
+                                .foregroundColor(.blue)
+                        }
+                        
+                        Text("· 連線 \(vm.serverConnectionCount)")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                }
+                
+                if vm.isRunning {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                
+                Text(vm.progressText)
+                    .font(.body)
+                    .foregroundColor(vm.isRunning ? .blue : .secondary)
+                
+                if !(vm.mode == .server && vm.isRunning) {
+                    Spacer()
+                }
+            }
+            .padding(.horizontal, 20)
+            .cardStyle()
+            .padding(.horizontal, 60)
+            
+            Spacer()
+            
+            // Row 5: Action buttons (bottom, horizontal)
+            HStack(spacing: 20) {
+                if vm.isRunning {
+                    Button {
+                        vm.cancel()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "stop.circle.fill")
+                            Text(vm.mode == .server ? "停止伺服器" : "停止測試")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .focused($focusedButton, equals: .startStop)
+                    
+                    if vm.mode == .server {
+                        Button {
+                            vm.forceStopServer()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "xmark.octagon.fill")
+                                Text("強制停止")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.orange)
+                        .focused($focusedButton, equals: .forceStop)
+                    }
+                } else {
+                    Button {
+                        vm.start()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: vm.mode == .server ? "play.circle.fill" : "bolt.circle.fill")
+                            Text(vm.mode == .server ? "啟動伺服器" : "開始測試")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                    .focused($focusedButton, equals: .startStop)
+                }
+                
+                if !vm.log.isEmpty {
+                    Button {
+                        vm.clearLog()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                            Text("清除記錄")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.gray)
+                    .focused($focusedButton, equals: .clearLog)
+                }
+            }
+            .padding(.bottom, 20)
         }
+        .padding(.vertical, 30)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: vm.mode)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: vm.isRunning)
         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: vm.result != nil)
@@ -425,7 +322,6 @@ struct ContentView: View {
                 showResult = true
             }
         }
-
         .sheet(isPresented: $showResult) {
             if let result = vm.result {
                 TVResultView(result: result, unit: vm.selectedUnit)
@@ -433,17 +329,13 @@ struct ContentView: View {
         }
     }
     
-    // Helper: icon for mode
     private func icon(for mode: SpeedTestMode) -> String {
         switch mode {
-        case .server:
-            return "server.rack"
-        case .client:
-            return "iphone"
+        case .server: return "server.rack"
+        case .client: return "iphone"
         }
     }
     
-    // Get local IP
     private func getLocalIPAddress() {
         Task {
             let ip = await LocalIPHelper.getLocalIPAddress()
