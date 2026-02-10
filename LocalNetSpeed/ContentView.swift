@@ -113,6 +113,7 @@ struct ContentView: View {
                         HStack(spacing: 0) {
                             ForEach(SpeedTestMode.allCases) { m in
                                 Button {
+                                    Haptic.selection()
                                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                         vm.mode = m
                                     }
@@ -194,6 +195,7 @@ struct ContentView: View {
                                 Button {
                                     if let string = UIPasteboard.general.string {
                                         vm.host = string
+                                        Haptic.Impact.light()
                                     }
                                 } label: {
                                     Image(systemName: "clipboard")
@@ -230,6 +232,9 @@ struct ContentView: View {
                         }
                         .pickerStyle(.segmented)
                         .padding(.bottom, 4)
+                        .onChange(of: vm.selectedUnit) { _, _ in
+                            Haptic.selection()
+                        }
                         
                         // Status Display
                         if vm.isRunning || (!vm.progressText.isEmpty && vm.progressText != "尚未開始") {
@@ -325,6 +330,7 @@ struct ContentView: View {
                     }
                     .padding()
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .navigationTitle("LocalNetSpeed")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -351,6 +357,7 @@ struct ContentView: View {
                 HStack(spacing: 12) {
                     if vm.isRunning {
                         Button {
+                            Haptic.Impact.light()
                             vm.cancel()
                         } label: {
                             HStack(spacing: 6) {
@@ -365,6 +372,7 @@ struct ContentView: View {
                         
                         if vm.mode == .server {
                             Button {
+                                Haptic.Impact.heavy()
                                 vm.forceStopServer()
                             } label: {
                                 HStack(spacing: 4) {
@@ -380,6 +388,7 @@ struct ContentView: View {
                         }
                     } else {
                         Button {
+                            Haptic.Impact.medium()
                             vm.start()
                         } label: {
                             HStack(spacing: 6) {
@@ -394,6 +403,9 @@ struct ContentView: View {
                 }
                 .padding()
                 .background(Color(uiColor: .systemBackground).opacity(0.9))
+            }
+            .onTapGesture {
+                UIApplication.shared.endEditing()
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: vm.mode)
@@ -443,13 +455,7 @@ struct ContentView: View {
                 showCopiedAlert = false
             }
         }
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.prepare()
-            impactFeedback.impactOccurred()
-        }
-        #endif
+        Haptic.Impact.light()
     }
     
     // Stat Badge
@@ -480,7 +486,12 @@ struct ContentView: View {
     }
 }
 
-
+// MARK: - Extensions
+extension UIApplication {
+    func endEditing() {
+        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
 
 // MARK: - 本機 IP 取得工具 (保持原有)
 

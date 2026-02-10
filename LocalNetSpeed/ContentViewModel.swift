@@ -132,13 +132,8 @@ final class ContentViewModel: ObservableObject {
         progressText = "伺服器已強制停止"
         append("伺服器已強制停止")
         
-        // 觸覺回饋 (iOS) - 僅在實體裝置上執行
         #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.prepare()
-            impactFeedback.impactOccurred()
-        }
+        Haptic.Impact.heavy()
         #endif
     }
     
@@ -146,6 +141,9 @@ final class ContentViewModel: ObservableObject {
         switch res {
         case .success(let r):
             result = r
+            #if os(iOS)
+            Haptic.success()
+            #endif
             if mode == .server {
                 // 伺服器模式：測試完成後繼續運行，等待下一個連線
                 progressText = "等待連線..."
@@ -158,6 +156,9 @@ final class ContentViewModel: ObservableObject {
                 append(format(r))
             }
         case .failure(let e):
+            #if os(iOS)
+            Haptic.error()
+            #endif
             if mode == .server {
                 // 伺服器模式：錯誤後繼續運行
                 progressText = "等待連線..."
