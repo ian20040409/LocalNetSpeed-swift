@@ -159,6 +159,23 @@ final class ContentViewModel: ObservableObject {
             }
             
             isRunning = false
+            
+            if mode == .server {
+                // If it's a connection error, keep server running
+                let errStr = e.localizedDescription
+                // Errors that should NOT stop the server
+                if errStr.contains("Connection reset") || 
+                   errStr.contains("54") || 
+                   errStr.contains("Broken pipe") ||
+                   errStr.contains("Software caused connection abort") {
+                    
+                    isRunning = true
+                    progressText = "等待連線... (上次連線中斷)"
+                    append("--- 連線中斷，伺服器繼續運行 ---")
+                    return
+                }
+            }
+            
             progressText = "錯誤：\(e.localizedDescription)"
             append("錯誤：\(e)")
         }
