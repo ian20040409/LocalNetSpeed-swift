@@ -94,6 +94,7 @@ struct ContentView: View {
     @FocusState private var focusedButton: FocusableButton?
     @State private var localIP = "獲取中..."
     @State private var isShowingIPInputView = false
+    @State private var showResult = false
 
     enum FocusableButton {
         case modeSelection
@@ -328,107 +329,59 @@ struct ContentView: View {
                         )
                 }
 
-                // Results
-                if let result = vm.result {
-                    VStack(spacing: 25) {
-                        Text("測試結果")
-                            .font(.title)
-                            .fontWeight(.bold)
-                        
-                        VStack(spacing: 20) {
-                            let speedVal = vm.selectedUnit.convert(fromMBps: result.speedMBps)
-                            let maxSpeed: Double = {
-                                switch vm.selectedUnit {
-                                case .mbps: return 1000
-                                case .gbps: return 1
-                                case .mbs: return 125
-                                case .kbps: return 1_000_000
-                                }
-                            }()
-                            
-                            // Speed Gauge
-                            SpeedGaugeView(
-                                speed: speedVal,
-                                unit: vm.selectedUnit.rawValue,
-                                maxSpeed: maxSpeed
-                            )
-                            
-                            // Evaluation
-                            Text(result.evaluation.rating)
-                                .font(.system(size: 32, weight: .semibold))
-                            
-                            // Stats
-                            VStack(spacing: 15) {
-                                HStack(spacing: 40) {
-                                    VStack {
-                                        Image(systemName: "arrow.up.arrow.down")
-                                            .foregroundColor(.accentColor)
-                                        Text("傳輸量")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text("\(String(format: "%.2f", Double(result.transferredBytes)/1024/1024)) MB")
-                                            .font(.title3)
-                                            .fontWeight(.medium)
-                                    }
-                                    VStack {
-                                        Image(systemName: "clock")
-                                            .foregroundColor(.accentColor)
-                                        Text("耗時")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text("\(String(format: "%.2f", result.duration)) 秒")
-                                            .font(.title3)
-                                            .fontWeight(.medium)
-                                    }
-                                    VStack {
-                                        Image(systemName: "chart.bar")
-                                            .foregroundColor(.accentColor)
-                                        Text("達成率")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text("\(String(format: "%.1f", result.evaluation.performancePercent))%")
-                                            .font(.title3)
-                                            .fontWeight(.medium)
-                                    }
-                                }
-                            }
-                        }
-                        .cardStyle()
-                    }
-                    .transition(.scale(scale: 0.9).combined(with: .opacity))
-                }
+
+                
+                // Result sheet logic handled via onChange and sheet modifier
 
                 // Control Buttons
                 VStack(spacing: 30) {
-                    Button {
-                        vm.isRunning ? vm.cancel() : vm.start()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: vm.isRunning ? "stop.circle.fill" : "play.circle.fill")
-                            Text(vm.isRunning ? "停止測試" : "開始測試")
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .font(.system(size: 24, weight: .semibold))
-                    .tint(vm.isRunning ? .red : .blue)
-                    .focused($focusedButton, equals: .startStop)
-                    
-                    // Force stop server
-                    if vm.mode == .server && vm.isRunning {
+                    if vm.isRunning {
+                        // Stop button
                         Button {
-                            vm.forceStopServer()
+                            vm.cancel()
                         } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "xmark.octagon.fill")
-                                Text("強制停止伺服器")
+                            HStack(spacing: 8) {
+                                Image(systemName: "stop.circle.fill")
+                                Text(vm.mode == .server ? "停止伺服器" : "停止測試")
                             }
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                         .controlSize(.large)
-                        .font(.title3)
-                        .tint(.orange)
-                        .focused($focusedButton, equals: .forceStop)
+                        .font(.system(size: 24, weight: .semibold))
+                        .tint(.red)
+                        .focused($focusedButton, equals: .startStop)
+                        
+                        // Force stop server
+                        if vm.mode == .server {
+                            Button {
+                                vm.forceStopServer()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "xmark.octagon.fill")
+                                    Text("強制停止伺服器")
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                            .font(.title3)
+                            .tint(.orange)
+                            .focused($focusedButton, equals: .forceStop)
+                        }
+                    } else {
+                        // Start button
+                        Button {
+                            vm.start()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: vm.mode == .server ? "play.circle.fill" : "bolt.circle.fill")
+                                Text(vm.mode == .server ? "啟動伺服器" : "開始測試")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .font(.system(size: 24, weight: .semibold))
+                        .tint(.blue)
+                        .focused($focusedButton, equals: .startStop)
                     }
                     
                     // Clear log
@@ -465,6 +418,17 @@ struct ContentView: View {
                 focusedButton = .manualInput
             } else {
                 focusedButton = .startStop
+            }
+        }
+        .onChange(of: vm.result) { _, newVal in
+            if newVal != nil {
+                showResult = true
+            }
+        }
+
+        .sheet(isPresented: $showResult) {
+            if let result = vm.result {
+                TVResultView(result: result, unit: vm.selectedUnit)
             }
         }
     }

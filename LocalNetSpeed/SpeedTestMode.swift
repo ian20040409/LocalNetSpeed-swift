@@ -14,7 +14,7 @@ enum SpeedTestMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-struct SpeedTestResult {
+struct SpeedTestResult: Equatable {
     let transferredBytes: Int
     let duration: TimeInterval
     var speedMBps: Double {

@@ -1,6 +1,6 @@
 import Foundation
 
-struct GigabitEvaluation {
+struct GigabitEvaluation: Equatable {
     let speedMBps: Double
     let performancePercent: Double
     let rating: String
