@@ -8,13 +8,33 @@ import UIKit
 @MainActor
 final class ContentViewModel: ObservableObject {
     @Published var mode: SpeedTestMode = .server
+    @Published var selectedUnit: SpeedUnit = .mbps
     @Published var host: String = ""
     @Published var port: String = "65432"
     @Published var sizeMB: String = "100"
     @Published var isRunning = false
     @Published var progressText = "尚未開始"
+    @Published var progressText = "尚未開始"
     @Published var log = ""
     @Published var result: SpeedTestResult?
+
+    enum SpeedUnit: String, CaseIterable, Identifiable {
+        case mbps = "Mbps"
+        case gbps = "Gbps"
+        case mbs = "MB/s"
+        case kbps = "Kbps"
+        
+        var id: String { rawValue }
+        
+        func convert(fromMBps mbps: Double) -> Double {
+            switch self {
+            case .mbps: return mbps * 8
+            case .gbps: return mbps * 8 / 1024
+            case .mbs: return mbps
+            case .kbps: return mbps * 8 * 1024
+            }
+        }
+    }
     @Published var serverConnectionCount = 0
     @Published var enableRetry = true  // 控制是否啟用重試機制
     
@@ -69,6 +89,8 @@ final class ContentViewModel: ObservableObject {
                               progress: { [weak self] sent in
                 Task { @MainActor in
                     let percent = Double(sent)/Double(size*1024*1024)*100
+                    // 這裡可以選擇是否也要顯示即時速度，暫時維持百分比
+                    // 如果要顯示即時速度，需要計算 delta
                     self?.progressText = String(format: "進度 %.1f%%", percent)
                 }
             }, completion: { [weak self] res in
@@ -166,19 +188,27 @@ final class ContentViewModel: ObservableObject {
         let eval = r.evaluation
         let totalMB = String(format: "%.2f", Double(r.transferredBytes)/1024/1024)
         let durationStr = String(format: "%.2f", r.duration)
-        let speedStr = String(format: "%.2f", r.speedMBps)
-        let evalSpeed = String(format: "%.2f", eval.speedMBps)
+        let val = selectedUnit.convert(fromMBps: r.speedMBps)
+        let speedStr = String(format: "%.2f", val)
+        let unitStr = selectedUnit.rawValue
+        
+        let evalSpeedVal = selectedUnit.convert(fromMBps: eval.speedMBps)
+        let evalSpeed = String(format: "%.2f", evalSpeedVal)
+        
+        let theoreticalVal = selectedUnit.convert(fromMBps: GigabitEvaluator.theoreticalMBps)
+        let theoreticalStr = String(format: "%.0f", theoreticalVal)
+        
         let percentStr = String(format: "%.1f", eval.performancePercent)
         
         var lines: [String] = []
         lines.append("--- 測試結果 ---")
         lines.append("總量: \(totalMB) MB")
         lines.append("耗時: \(durationStr) 秒")
-        lines.append("平均: \(speedStr) MB/s")
+        lines.append("平均: \(speedStr) \(unitStr)")
         lines.append("")
         lines.append("--- Gigabit 評估 ---")
-        lines.append("實際速度: \(evalSpeed) MB/s")
-        lines.append("理論: \(GigabitEvaluator.theoreticalMBps) MB/s")
+        lines.append("實際速度: \(evalSpeed) \(unitStr)")
+        lines.append("理論: \(theoreticalStr) \(unitStr)")
         lines.append("達成比例: \(percentStr) %")
         lines.append("評級: \(eval.rating)")
         lines.append("建議: \(eval.message)")

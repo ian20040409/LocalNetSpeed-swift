@@ -90,6 +90,14 @@ struct ContentView: View {
                 Spacer()
             }
             
+            Picker("單位", selection: $vm.selectedUnit) {
+                ForEach(ContentViewModel.SpeedUnit.allCases) { unit in
+                    Text(unit.rawValue).tag(unit)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.bottom, 4)
+
             // 狀態顯示
             if vm.isRunning || (!vm.progressText.isEmpty && vm.progressText != "尚未開始") {
                 HStack {
@@ -121,7 +129,8 @@ struct ContentView: View {
             }
             
             if let r = vm.result {
-                Text("速度: \(String(format: "%.2f", r.speedMBps)) MB/s")
+                let speedVal = vm.selectedUnit.convert(fromMBps: r.speedMBps)
+                Text("速度: \(String(format: "%.2f", speedVal)) \(vm.selectedUnit.rawValue)")
                     .font(.headline)
                     .foregroundColor(.primary)
             }
